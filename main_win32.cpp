@@ -33,7 +33,7 @@ int main()
 		return GetLastError();
 	}
 
-	terminal_set_cursor(-15, 15);
+	terminal_set_cursor(15, 15);
 	terminal_write("hello", 5);
 	return 0;
 }
