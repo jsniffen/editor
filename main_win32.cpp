@@ -34,6 +34,8 @@ int main()
 	}
 
 	terminal_set_cursor(15, 15);
+	terminal_set_color_fg({0, 0, 255});
+	terminal_set_color_bg({0, 255, 0});
 	terminal_write("hello", 5);
 	return 0;
 }
