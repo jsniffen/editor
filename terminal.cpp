@@ -35,7 +35,7 @@ void terminal_set_cursor(int x, int y)
 	write_int_to_ascii(x, buffer, &buffer_length);
 	buffer[buffer_length++] = 'H';
 
-	terminal_write(buffer, buffer_length);
+	TerminalWrite(buffer, buffer_length);
 }
 
 void terminal_set_color_fg(color c)
@@ -58,7 +58,7 @@ void terminal_set_color_fg(color c)
 	write_int_to_ascii(c.b, buffer, &buffer_length);
 	buffer[buffer_length++] = 'm';
 
-	terminal_write(buffer, buffer_length);
+	TerminalWrite(buffer, buffer_length);
 }
 
 void terminal_set_color_bg(color c)
@@ -81,5 +81,12 @@ void terminal_set_color_bg(color c)
 	write_int_to_ascii(c.b, buffer, &buffer_length);
 	buffer[buffer_length++] = 'm';
 
-	terminal_write(buffer, buffer_length);
+	TerminalWrite(buffer, buffer_length);
+}
+
+void TerminalGetEvent(TerminalEvent *Event)
+{
+	char Buffer[4];
+	TerminalRead(Buffer, 4);
+	Event->Key = Buffer[0];
 }

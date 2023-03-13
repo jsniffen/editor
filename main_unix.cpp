@@ -4,20 +4,21 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+
 #include "terminal.cpp"
 
 static int fd;
 static struct termios tios;
 static struct termios og_tios;
 
-void terminal_read(char *buffer, int len)
+void TerminalRead(char *Buffer, int Length)
 {
-	read(fd, buffer, len);
+	read(fd, Buffer, Length);
 }
 
-void terminal_write(char *buffer, int len)
+void TerminalWrite(char *Buffer, int Length)
 {
-	write(fd, buffer, len);
+	write(fd, Buffer, Length);
 }
 
 int main()
@@ -37,10 +38,15 @@ int main()
 	tios.c_cc[VTIME] = 0;
 	tcsetattr(fd, TCSAFLUSH, &tios);
 
-	terminal_set_cursor(15, 15);
-	terminal_set_color_fg({0, 0, 255});
-	terminal_set_color_bg({0, 255, 0});
-	terminal_write("hello", 5);
+	bool Running = true;
+	while (Running) {
+		TerminalEvent Event;
+		TerminalGetEvent(&Event);
+
+		if (Event.Key == 'q') {
+			Running = false;
+		}
+	}
 
 	tcsetattr(fd, TCSAFLUSH, &og_tios);
 	return 0;
