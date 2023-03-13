@@ -5,7 +5,12 @@ struct color
 	int b;
 };
 
-void terminal_write(char *buffer, int len);
+struct TerminalEvent
+{
+	char Key;
+};
 
-void terminal_read(char *buffer, int len);
+void TerminalWrite(char *Buffer, int Length);
+
+void TerminalRead(char *Buffer, int Length);
 
