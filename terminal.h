@@ -1,10 +1,3 @@
-struct color
-{
-	int r;
-	int g;
-	int b;
-};
-
 struct TerminalEvent
 {
 	char Key;

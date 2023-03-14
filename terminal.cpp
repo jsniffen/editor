@@ -22,7 +22,7 @@ void write_int_to_ascii(int n, char *buffer, int *buffer_length)
 	}
 }
 
-void terminal_set_cursor(int x, int y)
+void TerminalSetCursor(int x, int y)
 {
 	char buffer[32];
 	int buffer_length = 0;
@@ -38,50 +38,38 @@ void terminal_set_cursor(int x, int y)
 	TerminalWrite(buffer, buffer_length);
 }
 
-void terminal_set_color_fg(color c)
+void TerminalSetForeground(char *Buffer, int *BufferLength, color Color)
 {
-	char buffer[32];
-	int buffer_length = 0;
-	int buffer_size = 32;
-
-	buffer[buffer_length++] = '\033';
-	buffer[buffer_length++] = '[';
-	buffer[buffer_length++] = '3';
-	buffer[buffer_length++] = '8';
-	buffer[buffer_length++] = ';';
-	buffer[buffer_length++] = '2';
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.r, buffer, &buffer_length);
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.g, buffer, &buffer_length);
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.b, buffer, &buffer_length);
-	buffer[buffer_length++] = 'm';
-
-	TerminalWrite(buffer, buffer_length);
+	Buffer[(*BufferLength)++] = '\033';
+	Buffer[(*BufferLength)++] = '[';
+	Buffer[(*BufferLength)++] = '3';
+	Buffer[(*BufferLength)++] = '8';
+	Buffer[(*BufferLength)++] = ';';
+	Buffer[(*BufferLength)++] = '2';
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.r, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.g, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.b, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = 'm';
 }
 
-void terminal_set_color_bg(color c)
+void TerminalSetBackground(char *Buffer, int *BufferLength, color Color)
 {
-	char buffer[32];
-	int buffer_length = 0;
-	int buffer_size = 32;
-
-	buffer[buffer_length++] = '\033';
-	buffer[buffer_length++] = '[';
-	buffer[buffer_length++] = '4';
-	buffer[buffer_length++] = '8';
-	buffer[buffer_length++] = ';';
-	buffer[buffer_length++] = '2';
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.r, buffer, &buffer_length);
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.g, buffer, &buffer_length);
-	buffer[buffer_length++] = ';';
-	write_int_to_ascii(c.b, buffer, &buffer_length);
-	buffer[buffer_length++] = 'm';
-
-	TerminalWrite(buffer, buffer_length);
+	Buffer[(*BufferLength)++] = '\033';
+	Buffer[(*BufferLength)++] = '[';
+	Buffer[(*BufferLength)++] = '4';
+	Buffer[(*BufferLength)++] = '8';
+	Buffer[(*BufferLength)++] = ';';
+	Buffer[(*BufferLength)++] = '2';
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.r, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.g, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = ';';
+	write_int_to_ascii(Color.b, Buffer, BufferLength);
+	Buffer[(*BufferLength)++] = 'm';
 }
 
 void TerminalGetEvent(TerminalEvent *Event)
@@ -89,4 +77,31 @@ void TerminalGetEvent(TerminalEvent *Event)
 	char Buffer[4];
 	TerminalRead(Buffer, 4);
 	Event->Key = Buffer[0];
+}
+
+void TerminalRender(cell *cells, int length)
+{
+	char Buffer[100000];
+	int BufferLength = 0;
+
+	color bg = {0, 0, 0};
+	color fg = {0, 0, 0};
+
+	TerminalSetCursor(0, 0);
+	for (int i = 0; i < length; ++i) {
+		cell c = cells[i];
+
+		if (!ColorEquals(c.background, bg)) {
+			TerminalSetBackground(Buffer, &BufferLength, c.background);
+			bg = c.background;
+		}
+
+		if (!ColorEquals(c.foreground, fg)) {
+			TerminalSetForeground(Buffer, &BufferLength, c.foreground);
+			fg = c.foreground;
+		}
+
+		Buffer[BufferLength++] = c.key;
+	}
+	TerminalWrite(Buffer, BufferLength);
 }
