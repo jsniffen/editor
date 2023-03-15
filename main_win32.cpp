@@ -4,7 +4,6 @@
 
 static HANDLE Stdin, Stdout;
 static int Width, Height;
-static cell BackBuffer[10000];
 
 void TerminalWrite(char *Buffer, int Length)
 {
@@ -26,8 +25,8 @@ void CALLBACK ResizeCallback(HWINEVENTHOOK Hook, DWORD Event,
 {
 	CONSOLE_SCREEN_BUFFER_INFO info;
 	GetConsoleScreenBufferInfo(Stdout, &info);
-	Width = info.srWindow.Right;
-	Height = info.srWindow.Bottom;
+	Width = info.srWindow.Right+1;
+	Height = info.srWindow.Bottom-info.srWindow.Top+1;
 }
 
 int main()
@@ -64,12 +63,25 @@ int main()
 
 
 	ResizeCallback(0, 0, 0, 0, 0, 0, 0);
+	int BackBufferLength = Width*Height;
+	cell *BackBuffer = (cell *)VirtualAlloc(0,
+			sizeof(cell)*BackBufferLength,
+			MEM_COMMIT,
+			PAGE_READWRITE);
 
 	bool Running = true;
 	while (Running) {
 		MSG Message;
 		while (PeekMessage(&Message, console, EVENT_CONSOLE_LAYOUT, EVENT_CONSOLE_LAYOUT, PM_REMOVE)) {
 			DispatchMessage(&Message);
+		}
+
+		if (Width*Height != BackBufferLength) {
+			BackBufferLength = Width*Height;
+			BackBuffer = (cell *)VirtualAlloc(0,
+					sizeof(cell)*BackBufferLength,
+					MEM_COMMIT,
+					PAGE_READWRITE);
 		}
 
 		TerminalEvent Event;

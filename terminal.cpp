@@ -81,7 +81,7 @@ void TerminalGetEvent(TerminalEvent *Event)
 
 void TerminalRender(cell *cells, int length)
 {
-	char Buffer[100000];
+	char Buffer[2000];
 	int BufferLength = 0;
 
 	color bg = {0, 0, 0};
@@ -89,7 +89,7 @@ void TerminalRender(cell *cells, int length)
 
 	TerminalSetCursor(0, 0);
 	for (int i = 0; i < length; ++i) {
-		cell c = cells[i];
+		cell c = *cells++;
 
 		if (!ColorEquals(c.background, bg)) {
 			TerminalSetBackground(Buffer, &BufferLength, c.background);
@@ -102,6 +102,12 @@ void TerminalRender(cell *cells, int length)
 		}
 
 		Buffer[BufferLength++] = c.key;
+
+		if (BufferLength >= 1000) {
+			TerminalWrite(Buffer, BufferLength);
+			BufferLength = 0;
+		}
 	}
+
 	TerminalWrite(Buffer, BufferLength);
 }
