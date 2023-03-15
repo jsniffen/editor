@@ -1,8 +1,10 @@
 #include <windows.h>
+#include "editor.cpp"
 #include "terminal.cpp"
 
 static HANDLE Stdin, Stdout;
 static int Width, Height;
+static cell BackBuffer[10000];
 
 void TerminalWrite(char *Buffer, int Length)
 {
@@ -60,10 +62,9 @@ int main()
 		return GetLastError();
 	}
 
-	int width, height;
-	CONSOLE_SCREEN_BUFFER_INFO info;
-	INPUT_RECORD inputs[1];
-	DWORD inputs_read;
+
+	ResizeCallback(0, 0, 0, 0, 0, 0, 0);
+
 	bool Running = true;
 	while (Running) {
 		MSG Message;
@@ -77,6 +78,10 @@ int main()
 		if (Event.Key == 'q') {
 			Running = false;
 		}
+
+		Update(BackBuffer, Width, Height);
+
+		TerminalRender(BackBuffer, Width*Height);
 	}
 
 	return 0;
