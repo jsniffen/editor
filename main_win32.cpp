@@ -91,7 +91,7 @@ int main()
 			Running = false;
 		}
 
-		Update(BackBuffer, Width, Height);
+		Render(BackBuffer, Width, Height);
 
 		TerminalRender(BackBuffer, Width*Height);
 	}

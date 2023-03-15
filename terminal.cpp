@@ -91,12 +91,12 @@ void TerminalRender(cell *cells, int length)
 	for (int i = 0; i < length; ++i) {
 		cell c = *cells++;
 
-		if (!ColorEquals(c.background, bg)) {
+		if (!ColorEquals(c.background, bg) || i == 0) {
 			TerminalSetBackground(Buffer, &BufferLength, c.background);
 			bg = c.background;
 		}
 
-		if (!ColorEquals(c.foreground, fg)) {
+		if (!ColorEquals(c.foreground, fg) || i == 0) {
 			TerminalSetForeground(Buffer, &BufferLength, c.foreground);
 			fg = c.foreground;
 		}
