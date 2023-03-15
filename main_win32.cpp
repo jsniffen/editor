@@ -77,6 +77,7 @@ int main()
 		}
 
 		if (Width*Height != BackBufferLength) {
+			VirtualFree(BackBuffer, BackBufferLength, MEM_RELEASE);
 			BackBufferLength = Width*Height;
 			BackBuffer = (cell *)VirtualAlloc(0,
 					sizeof(cell)*BackBufferLength,
