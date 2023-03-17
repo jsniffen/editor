@@ -17,3 +17,25 @@ struct cell
 	color background;
 	char key;
 };
+
+struct piece_table_entry
+{
+	bool Original;
+	int StartIndex;
+	int Length;
+};
+
+struct buffer
+{
+	char *Content;
+	int ContentLength;
+	piece_table_entry PieceTable[256];
+};
+
+struct editor
+{
+	cell *Cells;
+	int Width;
+	int Height;
+	buffer Buffer;
+};

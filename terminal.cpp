@@ -22,6 +22,11 @@ void write_int_to_ascii(int n, char *buffer, int *buffer_length)
 	}
 }
 
+void TerminalHideCursor()
+{
+	TerminalWrite("\033[?25l", 6);
+}
+
 void TerminalSetCursor(int x, int y)
 {
 	char buffer[32];
@@ -87,7 +92,7 @@ void TerminalRender(cell *cells, int length)
 	color bg = {0, 0, 0};
 	color fg = {0, 0, 0};
 
-	TerminalSetCursor(0, 0);
+	TerminalSetCursor(1, 1);
 	for (int i = 0; i < length; ++i) {
 		cell c = *cells++;
 

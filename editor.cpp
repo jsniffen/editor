@@ -1,36 +1,54 @@
 #include "editor.h"
 
-static int hue;
-static int n;
-static int brightness;
-
 static color StatusBarBackground = {0, 0, 255};
 static color StatusBarForeground = {255, 255, 255};
 static color ColorBlack = {0, 0, 0};
 
-void ClearColor(cell *BackBuffer, int Width, int Height, color Color)
+void ClearColor(editor *Editor, color Color)
 {
-	for (int Y = 0; Y < Height; ++Y) {
-		for (int X = 0; X < Width; ++X) {
-			BackBuffer[Y*Width + X].background = Color;
-			BackBuffer[Y*Width + X].foreground = Color;
-			BackBuffer[Y*Width + X].key = ' ';
+	for (int Y = 0; Y < Editor->Height; ++Y) {
+		for (int X = 0; X < Editor->Width; ++X) {
+			Editor->Cells[Y*Editor->Width + X].background = Color;
+			Editor->Cells[Y*Editor->Width + X].foreground = Color;
+			Editor->Cells[Y*Editor->Width + X].key = ' ';
 		}
 	}
 }
 
-void RenderStatusBar(cell *BackBuffer, int Width, int Height)
+void RenderStatusBar(editor *Editor)
 {
-	cell *Cell = &BackBuffer[(Height-1)*Width];
-	for (int X = 0; X < Width; ++X) {
+	cell *Cell = &Editor->Cells[(Editor->Height-1)*Editor->Width];
+	for (int X = 0; X < Editor->Width; ++X) {
 		Cell[X].background = StatusBarBackground;
 		Cell[X].foreground = StatusBarForeground;
 		Cell[X].key = ' ';
 	}
 }
 
-void Render(cell *BackBuffer, int Width, int Height)
+void RenderBuffer(editor *Editor)
 {
-	ClearColor(BackBuffer, Width, Height, ColorBlack);
-	RenderStatusBar(BackBuffer, Width, Height);
+	int X = 0;
+	int Y = 0;
+	for (int Index = 0; Index < Editor->Buffer.ContentLength; ++Index) {
+		char Key = Editor->Buffer.Content[Index];
+
+		if (Key == '\n') {
+			Y += 1;
+			X = 0;
+			continue;
+		}
+
+		Editor->Cells[Y*Editor->Width + X].key = Key;
+		Editor->Cells[Y*Editor->Width + X].foreground = {255, 255, 255};
+
+
+		++X;
+	}
+}
+
+void Render(editor *Editor)
+{
+	ClearColor(Editor, ColorBlack);
+	RenderBuffer(Editor);
+	RenderStatusBar(Editor);
 }

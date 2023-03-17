@@ -62,10 +62,17 @@ int main()
 	}
 
 
+	TerminalHideCursor();
+
 	ResizeCallback(0, 0, 0, 0, 0, 0, 0);
-	int BackBufferLength = Width*Height;
-	cell *BackBuffer = (cell *)VirtualAlloc(0,
-			sizeof(cell)*BackBufferLength,
+
+	editor Editor = {};
+	Editor.Buffer.Content = "hello world\nhello world";
+	Editor.Buffer.ContentLength = 20;
+	Editor.Width = Width;
+	Editor.Height = Height;
+	Editor.Cells = (cell *)VirtualAlloc(0,
+			sizeof(cell)*Width*Height,
 			MEM_COMMIT,
 			PAGE_READWRITE);
 
@@ -76,14 +83,19 @@ int main()
 			DispatchMessage(&Message);
 		}
 
-		if (Width*Height != BackBufferLength) {
-			VirtualFree(BackBuffer, BackBufferLength, MEM_RELEASE);
-			BackBufferLength = Width*Height;
-			BackBuffer = (cell *)VirtualAlloc(0,
-					sizeof(cell)*BackBufferLength,
+		if (Width != Editor.Width || Height != Editor.Height) {
+			VirtualFree(Editor.Cells, 0, MEM_RELEASE);
+			Editor.Width = Width;
+			Editor.Height = Height;
+			Editor.Cells = (cell *)VirtualAlloc(0,
+					sizeof(cell)*Width*Height,
 					MEM_COMMIT,
 					PAGE_READWRITE);
 		}
+
+		Render(&Editor);
+
+		TerminalRender(Editor.Cells, Width*Height);
 
 		TerminalEvent Event;
 		TerminalGetEvent(&Event);
@@ -91,10 +103,6 @@ int main()
 		if (Event.Key == 'q') {
 			Running = false;
 		}
-
-		Render(BackBuffer, Width, Height);
-
-		TerminalRender(BackBuffer, Width*Height);
 	}
 
 	return 0;
