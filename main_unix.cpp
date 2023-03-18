@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <cstdlib>
 
 #include "editor.cpp"
 #include "terminal.cpp"
@@ -14,9 +15,6 @@ static int Width;
 static int Height;
 static struct termios tios;
 static struct termios og_tios;
-
-static cell BackBuffer[10000];
-
 
 void TerminalRead(char *Buffer, int Length)
 {
@@ -61,18 +59,25 @@ int main()
 
 	UpdateSize(0);
 
+	editor Editor = {};
+	Editor.Buffer.Content = "hello world\nhello world";
+	Editor.Buffer.ContentLength = 20;
+	Editor.Width = Width;
+	Editor.Height = Height;
+	Editor.Cells = (cell *)malloc(sizeof(cell)*Width*Height);
+
 	bool Running = true;
 	while (Running) {
+		Render(&Editor);
+
+		TerminalRender(Editor.Cells, Width*Height);
+
 		TerminalEvent Event;
 		TerminalGetEvent(&Event);
 
 		if (Event.Key == 'q') {
 			Running = false;
 		}
-
-		Update(BackBuffer, Width, Height);
-
-		TerminalRender(BackBuffer, Width*Height);
 	}
 
 	tcsetattr(fd, TCSAFLUSH, &og_tios);
