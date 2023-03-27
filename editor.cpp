@@ -27,10 +27,14 @@ void RenderStatusBar(editor *Editor)
 
 void RenderBuffer(editor *Editor)
 {
+	u8 Buffer[256];
+	u32 BytesRead;
+	Read(&Editor->PieceTable, Buffer, 256, &BytesRead);
+
 	int X = 0;
 	int Y = 0;
-	for (int Index = 0; Index < Editor->Buffer.ContentLength; ++Index) {
-		char Key = Editor->Buffer.Content[Index];
+	for (int Index = 0; Index < BytesRead; ++Index) {
+		char Key = Buffer[Index];
 
 		if (Key == '\n') {
 			Y += 1;
@@ -40,7 +44,6 @@ void RenderBuffer(editor *Editor)
 
 		Editor->Cells[Y*Editor->Width + X].key = Key;
 		Editor->Cells[Y*Editor->Width + X].foreground = {255, 255, 255};
-
 
 		++X;
 	}

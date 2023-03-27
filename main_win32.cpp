@@ -1,4 +1,7 @@
 #include <windows.h>
+#include <stdint.h>
+#include "types.h"
+#include "piece_table.cpp"
 #include "editor.cpp"
 #include "terminal.cpp"
 
@@ -67,8 +70,7 @@ int main()
 	ResizeCallback(0, 0, 0, 0, 0, 0, 0);
 
 	editor Editor = {};
-	Editor.Buffer.Content = "hello world\nhello world";
-	Editor.Buffer.ContentLength = 20;
+	Init(&Editor.PieceTable, (u8 *)"hello world\nhello julian!", 25);
 	Editor.Width = Width;
 	Editor.Height = Height;
 	Editor.Cells = (cell *)VirtualAlloc(0,

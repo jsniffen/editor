@@ -18,7 +18,7 @@ struct cell
 	char key;
 };
 
-struct piece_table_entry
+struct piece_table_entry_old
 {
 	bool Original;
 	int StartIndex;
@@ -27,9 +27,9 @@ struct piece_table_entry
 
 struct buffer
 {
-	char *Content;
-	int ContentLength;
-	piece_table_entry PieceTable[256];
+	u8 *Content;
+	u32 ContentLength;
+	piece_table_entry_old PieceTable[256];
 };
 
 struct editor
@@ -37,5 +37,5 @@ struct editor
 	cell *Cells;
 	int Width;
 	int Height;
-	buffer Buffer;
+	piece_table PieceTable;
 };
