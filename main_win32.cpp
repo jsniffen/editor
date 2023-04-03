@@ -15,11 +15,12 @@ void TerminalWrite(char *Buffer, int Length)
 	WriteFile(Stdout, Buffer, Length, &Written, 0);
 }
 
-void TerminalRead(char *Buffer, int Length)
+u32 TerminalRead(char *Buffer, int Length)
 {
 	DWORD Read;
 	HANDLE Stdin = GetStdHandle(STD_INPUT_HANDLE);
 	ReadConsole(Stdin, Buffer, Length, &Read, 0);
+	return Read;
 }
 
 void CALLBACK ResizeCallback(HWINEVENTHOOK Hook, DWORD Event,
@@ -77,9 +78,11 @@ int main()
 			sizeof(cell)*Width*Height,
 			MEM_COMMIT,
 			PAGE_READWRITE);
+	Editor.Running = true;
+	Editor.CursorX = 0;
+	Editor.CursorY = 0;
 
-	bool Running = true;
-	while (Running) {
+	while (Editor.Running) {
 		MSG Message;
 		while (PeekMessage(&Message, console, EVENT_CONSOLE_LAYOUT, EVENT_CONSOLE_LAYOUT, PM_REMOVE)) {
 			DispatchMessage(&Message);
@@ -99,12 +102,9 @@ int main()
 
 		TerminalRender(Editor.Cells, Width*Height);
 
-		TerminalEvent Event;
+		event Event;
 		TerminalGetEvent(&Event);
-
-		if (Event.Key == 'q') {
-			Running = false;
-		}
+		Update(&Editor, Event);
 	}
 
 	return 0;

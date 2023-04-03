@@ -123,6 +123,8 @@ b32 Delete(piece_table *Table, u32 Index)
 			return true;
 		}
 	}
+
+	return false;
 }
 
 void Read(piece_table *Table, u8 *OutBuffer, u32 OutBufferLength, u32 *BytesRead)

@@ -1,5 +1,7 @@
 #include "terminal.h"
 
+#define ESC '\033'
+
 static char digits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
 void write_int_to_ascii(int n, char *buffer, int *buffer_length)
@@ -77,11 +79,28 @@ void TerminalSetBackground(char *Buffer, int *BufferLength, color Color)
 	Buffer[(*BufferLength)++] = 'm';
 }
 
-void TerminalGetEvent(TerminalEvent *Event)
+void TerminalGetEvent(event *Event)
 {
 	char Buffer[4];
-	TerminalRead(Buffer, 4);
-	Event->Key = Buffer[0];
+	u32 Read = TerminalRead(Buffer, 4);
+
+	if (Read == 1) {
+		Event->KeyCode = (key_code)Buffer[0];
+	} else if (Read == 3) {
+		if (Buffer[0] == ESC) {
+			if (Buffer[1] == '[') {
+				if (Buffer[2] == 'A') {
+					Event->KeyCode = KeyUpArrow;
+				} else if (Buffer[2] == 'B') {
+					Event->KeyCode = KeyDownArrow;
+				} else if (Buffer[2] == 'C') {
+					Event->KeyCode = KeyRightArrow;
+				} else if (Buffer[2] == 'D') {
+					Event->KeyCode = KeyLeftArrow;
+				}
+			}
+		}
+	}
 }
 
 void TerminalRender(cell *cells, int length)
