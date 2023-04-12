@@ -18,18 +18,20 @@ struct cell
 	char key;
 };
 
-struct piece_table_entry_old
-{
-	bool Original;
-	int StartIndex;
-	int Length;
-};
-
 struct buffer
 {
+	u32 X0;
+	u32 Y0;
+	u32 Height;
+	u32 Width;
+
+	u32 CursorX;
+	u32 CursorY;
+
 	u8 *Content;
 	u32 ContentLength;
-	piece_table_entry_old PieceTable[256];
+
+	piece_table PieceTable;
 };
 
 struct editor
@@ -41,6 +43,7 @@ struct editor
 	u32 CursorX;
 	u32 CursorY;
 	b32 Running;
+	buffer Buffer;
 };
 
 enum key_code

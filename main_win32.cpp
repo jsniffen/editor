@@ -6,7 +6,7 @@
 #include "terminal.cpp"
 
 static HANDLE Stdin, Stdout;
-static int Width, Height;
+static u32 Width, Height;
 
 void TerminalWrite(char *Buffer, int Length)
 {
@@ -71,16 +71,7 @@ int main()
 	ResizeCallback(0, 0, 0, 0, 0, 0, 0);
 
 	editor Editor = {};
-	Init(&Editor.PieceTable, (u8 *)"hello world\nhello julian!", 25);
-	Editor.Width = Width;
-	Editor.Height = Height;
-	Editor.Cells = (cell *)VirtualAlloc(0,
-			sizeof(cell)*Width*Height,
-			MEM_COMMIT,
-			PAGE_READWRITE);
-	Editor.Running = true;
-	Editor.CursorX = 0;
-	Editor.CursorY = 0;
+	Init(&Editor, Width, Height);
 
 	while (Editor.Running) {
 		MSG Message;

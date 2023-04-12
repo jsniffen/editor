@@ -5,6 +5,26 @@ static color StatusBarBackground = {0, 0, 255};
 static color StatusBarForeground = {255, 255, 255};
 static color ColorBlack = {0, 0, 0};
 
+void Init(editor *Editor, u32 Width, u32 Height)
+{
+	Init(&Editor->Buffer.PieceTable, (u8 *)"hello world\nhello julian!", 25);
+	Editor->Buffer.X0 = 2;
+	Editor->Buffer.Y0 = 2;
+	Editor->Buffer.Width = 5;
+	Editor->Buffer.Height = 5;
+
+	Editor->Width = Width;
+	Editor->Height = Height;
+	Editor->Cells = (cell *)VirtualAlloc(0,
+			sizeof(cell)*Width*Height,
+			MEM_COMMIT,
+			PAGE_READWRITE);
+
+	Editor->Running = true;
+	Editor->CursorX = 0;
+	Editor->CursorY = 0;
+}
+
 void ClearColor(editor *Editor, color Color)
 {
 	for (int Y = 0; Y < Editor->Height; ++Y) {
@@ -64,23 +84,28 @@ void RenderStatusBar(editor *Editor)
 
 void RenderBuffer(editor *Editor)
 {
-	u8 Buffer[256];
-	u32 BytesRead;
-	Read(&Editor->PieceTable, Buffer, 256, &BytesRead);
+	buffer Buffer = Editor->Buffer;
 
-	int X = 0;
-	int Y = 0;
-	for (int Index = 0; Index < BytesRead; ++Index) {
-		char Key = Buffer[Index];
+	u8 Content[256];
+	u32 BytesRead;
+	Read(&Buffer.PieceTable, Content, 256, &BytesRead);
+
+	u32 Y = Buffer.Y0;
+	u32 X = Buffer.X0;
+	u32 Index;
+	for (Index = 0; Index < BytesRead; ++Index) {
+		u8 Key = Content[Index];
 
 		if (Key == '\n') {
 			Y += 1;
-			X = 0;
+			X = Buffer.X0;
 			continue;
 		}
 
-		Editor->Cells[Y*Editor->Width + X].key = Key;
-		Editor->Cells[Y*Editor->Width + X].foreground = {255, 255, 255};
+		if (X < Buffer.X0 + Buffer.Width && Y < Buffer.Y0 + Buffer.Height) {
+			Editor->Cells[Y*Editor->Width + X].key = Key;
+			Editor->Cells[Y*Editor->Width + X].foreground = {255, 255, 255};
+		}
 
 		++X;
 	}
@@ -107,6 +132,6 @@ void Update(editor *Editor, event Event)
 	} else if (Event.KeyCode == KeyRightArrow) {
 		MoveCursorRight(Editor);
 	} else {
-		Insert(&Editor->PieceTable, 0, (u8 *)&Event.KeyCode, 1);
+		Insert(&Editor->Buffer.PieceTable, 0, (u8 *)&Event.KeyCode, 1);
 	}
 }
