@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "types.h"
 #include "piece_table.cpp"
+#include "buffer.cpp"
 #include "editor.cpp"
 #include "terminal.cpp"
 

@@ -18,30 +18,11 @@ struct cell
 	char key;
 };
 
-struct buffer
-{
-	u32 X0;
-	u32 Y0;
-	u32 Height;
-	u32 Width;
-
-	u32 CursorX;
-	u32 CursorY;
-
-	u8 *Content;
-	u32 ContentLength;
-
-	piece_table PieceTable;
-};
-
 struct editor
 {
 	cell *Cells;
 	int Width;
 	int Height;
-	piece_table PieceTable;
-	u32 CursorX;
-	u32 CursorY;
 	b32 Running;
 	buffer Buffer;
 };

@@ -7,11 +7,7 @@ static color ColorBlack = {0, 0, 0};
 
 void Init(editor *Editor, u32 Width, u32 Height)
 {
-	Init(&Editor->Buffer.PieceTable, (u8 *)"hello world\nhello julian!", 25);
-	Editor->Buffer.X0 = 2;
-	Editor->Buffer.Y0 = 2;
-	Editor->Buffer.Width = 5;
-	Editor->Buffer.Height = 5;
+	Init(&Editor->Buffer, 2, 2, 5, 5);
 
 	Editor->Width = Width;
 	Editor->Height = Height;
@@ -21,8 +17,6 @@ void Init(editor *Editor, u32 Width, u32 Height)
 			PAGE_READWRITE);
 
 	Editor->Running = true;
-	Editor->CursorX = 0;
-	Editor->CursorY = 0;
 }
 
 void ClearColor(editor *Editor, color Color)
@@ -34,42 +28,6 @@ void ClearColor(editor *Editor, color Color)
 			Editor->Cells[Y*Editor->Width + X].key = ' ';
 		}
 	}
-}
-
-void MoveCursorLeft(editor *Editor)
-{
-	if (Editor->CursorX > 0) {
-		--Editor->CursorX;
-	}
-}
-
-void MoveCursorRight(editor *Editor)
-{
-	if (Editor->CursorX < Editor->Width - 1) {
-		++Editor->CursorX;
-	}
-}
-
-void MoveCursorUp(editor *Editor)
-{
-	if (Editor->CursorY > 0) {
-		--Editor->CursorY;
-	}
-}
-
-void MoveCursorDown(editor *Editor)
-{
-	if (Editor->CursorY < Editor->Height - 2) {
-		++Editor->CursorY;
-	}
-}
-
-void RenderCursor(editor *Editor)
-{
-	cell *Cell = &Editor->Cells[Editor->Width*Editor->CursorY + Editor->CursorX];
-
-	Cell->background = CursorBackground;
-	Cell->key = ' ';
 }
 
 void RenderStatusBar(editor *Editor)
@@ -86,15 +44,15 @@ void RenderBuffer(editor *Editor)
 {
 	buffer Buffer = Editor->Buffer;
 
-	u8 Content[256];
-	u32 BytesRead;
-	Read(&Buffer.PieceTable, Content, 256, &BytesRead);
+	// u8 Content[256];
+	// u32 BytesRead;
+	// Read(&Buffer.PieceTable, Content, 256, &BytesRead);
 
 	u32 Y = Buffer.Y0;
 	u32 X = Buffer.X0;
 	u32 Index;
-	for (Index = 0; Index < BytesRead; ++Index) {
-		u8 Key = Content[Index];
+	for (Index = 0; Index < Buffer.StringLength; ++Index) {
+		u8 Key = Buffer.String[Index];
 
 		if (Key == '\n') {
 			Y += 1;
@@ -116,7 +74,6 @@ void Render(editor *Editor)
 	ClearColor(Editor, ColorBlack);
 	RenderBuffer(Editor);
 	RenderStatusBar(Editor);
-	RenderCursor(Editor);
 }
 
 void Update(editor *Editor, event Event)
@@ -124,14 +81,11 @@ void Update(editor *Editor, event Event)
 	if (Event.KeyCode == 'q') {
 		Editor->Running = false;
 	} else if (Event.KeyCode == KeyUpArrow) {
-		MoveCursorUp(Editor);
 	} else if (Event.KeyCode == KeyDownArrow) {
-		MoveCursorDown(Editor);
 	} else if (Event.KeyCode == KeyLeftArrow) {
-		MoveCursorLeft(Editor);
 	} else if (Event.KeyCode == KeyRightArrow) {
-		MoveCursorRight(Editor);
 	} else {
-		Insert(&Editor->Buffer.PieceTable, 0, (u8 *)&Event.KeyCode, 1);
+		Insert(&Editor->Buffer, Event.KeyCode);
+		// Insert(&Editor->Buffer.PieceTable, 0, (u8 *)&Event.KeyCode, 1);
 	}
 }
