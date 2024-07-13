@@ -1,5 +1,2 @@
 *.exe
-*.ilk
 *.pdb
-a.out
-*.obj
