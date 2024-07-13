@@ -4,6 +4,9 @@ import "core:fmt"
 
 import rl "vendor:raylib"
 
+SCREEN_WIDTH :: 1024
+SCREEN_HEIGHT :: 512
+
 LINE_HEIGHT :: 30
 MARGIN :: 5
 
@@ -12,19 +15,18 @@ FONT_FILENAME :: "C:\\Windows\\Fonts\\consola.ttf"
 FONT_SPACING :: 1
 FONT_SIZE :: 24
 
-Mode :: enum {INSERT, NORMAL}
+Mode :: enum {INSERT, NORMAL, MODAL}
 
 main :: proc() {
 	rl.SetWindowState({.WINDOW_RESIZABLE})
 
-	rl.InitWindow(512, 512, "Editor")
+	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Editor")
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(30)
 	rl.SetExitKey(rl.KeyboardKey.KEY_NULL)
 
 	font := rl.LoadFontEx(FONT_FILENAME, FONT_SIZE, nil, 0)
-	fmt.println(font)
 
 	gap_buffer: GapBuffer = {
 		end = 256,
@@ -46,11 +48,14 @@ main :: proc() {
 			case .ESCAPE:
 				mode = .NORMAL
 
+			case .F5:
+				mode = .MODAL
+
 			case .ENTER:
 				gb_insert(&gap_buffer, '\n')
 
 			case .I:
-				if mode == .NORMAL {
+				if mode == .NORMAL || mode == .MODAL {
 					mode = .INSERT
 				}
 			}
@@ -86,6 +91,14 @@ main :: proc() {
 				h = LINE_HEIGHT
 				draw_status_bar(mode, font, x, y, w, h)
 			}
+
+			// Draw the modal
+			if mode == .MODAL {
+				x, y = screen_width/4, screen_height/4
+				w, h = x*2, y*2
+
+				draw_modal(x, y, w, h)
+			}
 		}
 		rl.EndDrawing()
 	}
@@ -117,6 +130,17 @@ draw_status_bar :: proc(m: Mode, font: rl.Font, x, y, w, h: i32) {
 		text = "INSERT"
 	case .NORMAL:
 		text = "NORMAL"
+	case .MODAL:
+		text = "MODAL"
 	}
 	rl.DrawTextEx(font, text, pos, FONT_SIZE, FONT_SPACING, rl.WHITE)
+}
+
+draw_modal :: proc(x, y, w, h: i32) {
+	round :: 0.5
+	segs :: 50
+	r := rl.Rectangle{f32(x), f32(y), f32(w), f32(h)}
+
+	rl.DrawRectangleRounded(r, round, segs, rl.BLACK)
+	rl.DrawRectangleRoundedLines(r, round, segs, 1, rl.YELLOW)
 }
