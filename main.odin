@@ -18,13 +18,12 @@ FONT_SIZE :: 24
 Mode :: enum {INSERT, NORMAL, MODAL}
 
 main :: proc() {
-	rl.SetWindowState({.WINDOW_RESIZABLE})
-
 	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Editor")
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(30)
 	rl.SetExitKey(rl.KeyboardKey.KEY_NULL)
+	rl.SetTargetFPS(30)
+	rl.SetWindowState({.WINDOW_RESIZABLE})
 
 	font := rl.LoadFontEx(FONT_FILENAME, FONT_SIZE, nil, 0)
 
