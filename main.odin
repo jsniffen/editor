@@ -57,6 +57,13 @@ main :: proc() {
 				if mode == .NORMAL || mode == .MODAL {
 					mode = .INSERT
 				}
+
+			case .LEFT:
+				gb_move(&gap_buffer, gap_buffer.start-1)
+
+			case .RIGHT:
+				gb_move(&gap_buffer, gap_buffer.start+1)
+
 			}
 		}
 
@@ -106,9 +113,59 @@ main :: proc() {
 draw_gap_buffer :: proc(gb: ^GapBuffer, font: rl.Font, x, y, w, h: i32) {
 	rl.DrawRectangle(x, y, w, h, rl.DARKGRAY)
 
-	text := gb_text(gb)
+	prefix, suffix := gb_text(gb)
+
 	pos := rl.Vector2{f32(x+MARGIN), f32(y+MARGIN)}
-	rl.DrawTextEx( font, text, pos, FONT_SIZE, FONT_SPACING, rl.WHITE)
+
+	index_to_move := gb.start
+	mouse_is_down := rl.IsMouseButtonPressed(.LEFT)
+	mouse_position := rl.GetMousePosition()
+	fmt.println(mouse_is_down, mouse_position)
+
+	for codepoint, i in prefix {
+		if codepoint == '\n' {
+			pos.x = MARGIN
+			pos.y += LINE_HEIGHT
+		} else {
+			rl.DrawTextCodepoint(font, codepoint, pos, FONT_SIZE, rl.WHITE)
+			rect := rl.GetGlyphAtlasRec(font, codepoint)
+
+			if mouse_is_down {
+				if rl.CheckCollisionPointRec(mouse_position, {
+					x = pos.x, y = pos.y, width = rect.width, height = rect.height,
+				}) {
+					index_to_move = i
+				}
+			}
+
+			pos.x += rect.width
+		}
+
+	}
+
+	rl.DrawRectangle(i32(pos.x), i32(pos.y), 4, LINE_HEIGHT, rl.BLACK)
+
+	for codepoint, i in suffix {
+		if codepoint == '\n' {
+			pos.x = MARGIN
+			pos.y += LINE_HEIGHT
+		} else {
+			rl.DrawTextCodepoint(font, codepoint, pos, FONT_SIZE, rl.WHITE)
+			rect := rl.GetGlyphAtlasRec(font, codepoint)
+
+			if mouse_is_down {
+				if rl.CheckCollisionPointRec(mouse_position, {
+					x = pos.x, y = pos.y, width = rect.width, height = rect.height,
+				}) {
+					index_to_move = i+len(prefix)
+				}
+			}
+
+			pos.x += rect.width
+		}
+	}
+
+	gb_move(gb, index_to_move)
 }
 
 draw_title_bar :: proc(font: rl.Font, x, y, w, h: i32) {
