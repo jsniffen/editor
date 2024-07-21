@@ -1,0 +1,1 @@
+cl /Zi main.c /I "C:\raylib\raylib-5.0_win64_msvc16\include" /link /LIBPATH:"C:\raylib\raylib-5.0_win64_msvc16\lib" raylib.lib gdi32.lib winmm.lib msvcrt.lib user32.lib shell32.lib /NODEFAULTLIB:libcmt
