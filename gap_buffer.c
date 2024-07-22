@@ -27,40 +27,38 @@ void gb_delete(gap_buffer *gb) {
 	--(gb->start);
 }
 
-void gb_move(gap_buffer *gb, int i) {
-	if (i == gb->start || i < 0) {
+void gb_move_rel(gap_buffer *gb, int diff) {
+	if (gb->start + diff < 0 || diff == 0) {
 		return;
 	}
 	
-	int j, diff;
-	if (i < gb->start) {
-		diff = gb->start - i;
-
-		for (j = 0; j < diff; ++j) {
+	int i;
+	if (diff < 0) {
+		for (i = 0; i < (-1*diff); ++i) {
 			gb->data[gb->end-1] = gb->data[gb->start-1];
 			--(gb->start);
 			--(gb->end);
 		}
 	} else {
-		diff = i - gb->start;
-
 		if (gb->end + diff > gb->cap) {
 			return;
 		}
 
-		for (j = 0; j < diff; ++j) {
+		for (i = 0; i < diff; ++i) {
 			gb->data[(gb->start)++] = gb->data[(gb->end)++];
 		}
 	}
 }
 
-void gb_draw(gap_buffer *gb, Font font, float font_size, int line_height, int x, int y, int w, int h) {
-	int i, codepoint;
+void gb_draw(gap_buffer *gb, frame_state *state, Font font, float font_size, int line_height, int x, int y, int w, int h) {
+	int i, codepoint, amount_to_move;
 	Vector2 pos;
 	Rectangle rect;
 
 	pos.x = x;
 	pos.y = y;
+
+	amount_to_move = 0;
 
 	for (i = 0; i < gb->start; ++i) {
 		codepoint = gb->data[i];
@@ -74,6 +72,11 @@ void gb_draw(gap_buffer *gb, Font font, float font_size, int line_height, int x,
 		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
 
 		rect = GetGlyphAtlasRec(font, codepoint);
+		rect.x = pos.x;
+		rect.y = pos.y;
+		if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
+			amount_to_move = -1*(gb->start-i);
+		}
 
 		pos.x += rect.width;
 	}
@@ -92,7 +95,16 @@ void gb_draw(gap_buffer *gb, Font font, float font_size, int line_height, int x,
 		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
 
 		rect = GetGlyphAtlasRec(font, codepoint);
+		rect.x = pos.x;
+		rect.y = pos.y;
+		if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
+			amount_to_move = (i - gb->end);
+		}
 
 		pos.x += rect.width;
+	}
+
+	if (amount_to_move != 0) {
+		gb_move_rel(gb, amount_to_move);
 	}
 }
