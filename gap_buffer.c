@@ -10,6 +10,12 @@ typedef struct gap_buffer {
 
 	// the capacity of the entire buffer
 	int cap;
+
+	// the start index of a selection, inclusive
+	int select_start;
+
+	// the stop index of a selection, inclusive
+	int select_end;
 } gap_buffer;
 
 void gb_init(gap_buffer *gb, int size) {
@@ -17,14 +23,33 @@ void gb_init(gap_buffer *gb, int size) {
 	gb->start = 0;
 	gb->end = size;
 	gb->cap = size;
+
+	gb->select_start = 0;
+	gb->select_end = 0;
+}
+
+void reset_selection(gap_buffer *gb) {
+	gb->select_start = 0;
+	gb->select_end = 0;
+}
+
+void add_to_selection(gap_buffer *gb, int i) {
+	gb->select_start = (i < gb->select_start || gb->select_start == 0) ? i : gb->select_start;
+	gb->select_end = (i > gb->select_end || gb->select_end == 0) ? i : gb->select_end;
 }
 
 void gb_insert(gap_buffer *gb, int codepoint) {
 	gb->data[(gb->start)++] = codepoint;
+
+	gb->select_start = 0;
+	gb->select_end = 0;
 }
 
 void gb_delete(gap_buffer *gb) {
 	--(gb->start);
+
+	gb->select_start = 0;
+	gb->select_end = 0;
 }
 
 void gb_move_rel(gap_buffer *gb, int diff) {
@@ -51,9 +76,12 @@ void gb_move_rel(gap_buffer *gb, int diff) {
 }
 
 void gb_draw(gap_buffer *gb, frame_state *state, Font font, float font_size, int line_height, int x, int y, int w, int h) {
+	reset_selection(gb);
+
 	int i, codepoint, amount_to_move;
 	Vector2 pos;
 	Rectangle rect;
+	GlyphInfo info;
 
 	pos.x = x;
 	pos.y = y;
@@ -69,14 +97,26 @@ void gb_draw(gap_buffer *gb, frame_state *state, Font font, float font_size, int
 			continue;
 		}
 
-		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
+		info = GetGlyphInfo(font, codepoint);
 
-		rect = GetGlyphAtlasRec(font, codepoint);
 		rect.x = pos.x;
 		rect.y = pos.y;
+		rect.width = info.advanceX;
+		rect.height = line_height;
+
 		if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
 			amount_to_move = -1*(gb->start-i);
 		}
+
+		if (CheckCollisionRecs(state->mouse_selection, rect)) {
+			add_to_selection(gb, i);
+		}
+
+		if (i >= gb->select_start && i <= gb->select_end) {
+			DrawRectangleRec(rect, PURPLE);
+		}
+
+		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
 
 		pos.x += rect.width;
 	}
@@ -92,14 +132,27 @@ void gb_draw(gap_buffer *gb, frame_state *state, Font font, float font_size, int
 			continue;
 		}
 
-		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
 
-		rect = GetGlyphAtlasRec(font, codepoint);
+		info = GetGlyphInfo(font, codepoint);
+
 		rect.x = pos.x;
 		rect.y = pos.y;
+		rect.width = info.advanceX;
+		rect.height = line_height;
+
 		if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
 			amount_to_move = (i - gb->end);
 		}
+
+		if (CheckCollisionRecs(state->mouse_selection, rect)) {
+			add_to_selection(gb, i);
+		}
+
+		if (i >= gb->select_start && i <= gb->select_end) {
+			DrawRectangleRec(rect, PURPLE);
+		}
+
+		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
 
 		pos.x += rect.width;
 	}

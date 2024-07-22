@@ -5,9 +5,22 @@ static float font_size;
 static int LINE_HEIGHT = 25;
 static int MARGIN = 5;
 
+float min(float a, float b) {
+	return a < b ? a : b;
+}
+
+float max(float a, float b) {
+	return a > b ? a : b;
+}
+
+float diff(float a, float b) {
+	return max(a, b) - min(a, b);
+}
+
 typedef struct frame_state {
 	Vector2 mouse_position;
 	bool mouse_pressed;
+	Rectangle mouse_selection;
 } frame_state;
 
 #include "gap_buffer.c"
@@ -16,51 +29,8 @@ typedef struct editor {
 	gap_buffer *focused_buffer;
 } editor;
 
-typedef struct window {
-	gap_buffer header_buffer;
-	gap_buffer body_buffer;
-} window;
+#include "window.c"
 
-void win_init(window *w) {
-	gb_init(&(w->header_buffer), 256);
-	gb_init(&(w->body_buffer), 256);
-}
-
-void win_draw(window *w, editor *ed, frame_state *state, int x, int y, int width, int height) {
-	int header_height = LINE_HEIGHT;
-
-	Rectangle rect;
-	rect.x = x;
-	rect.y = y;
-	rect.width = width;
-	rect.height = header_height;
-
-	DrawRectangleRec(rect, BLUE);
-	DrawRectangleLinesEx(rect, 1, BLACK);
-	gb_draw(&(w->header_buffer), state, font, font_size, LINE_HEIGHT, x+5, y+5, width, height);
-
-	if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
-		ed->focused_buffer = &(w->header_buffer);
-	}
-	
-	y += LINE_HEIGHT;
-
-	rect.x = x;
-	rect.y = y;
-	rect.width = width;
-	rect.height = height;
-
-	DrawRectangleRec(rect, GRAY);
-	gb_draw(&(w->body_buffer), state, font, font_size, LINE_HEIGHT, x+5, y+5, width, height);
-
-	if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
-		ed->focused_buffer = &(w->body_buffer);
-	}
-}
-
-void win_handle_char_pressed(window *w, int codepoint) {
-	gb_insert(&(w->body_buffer), codepoint);
-}
 
 int main(int argc, char **argv) {
 	InitWindow(800, 450, "Test");
@@ -80,10 +50,24 @@ int main(int argc, char **argv) {
 	int x, y, screen_width, screen_height;
 	int codepoint, key;
 	frame_state state;
+	Vector2 mouse_select_start;
+	Vector2 mouse_select_end;
 
 	while (!WindowShouldClose()) {
 		state.mouse_position = GetMousePosition();
 		state.mouse_pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+		if (state.mouse_pressed) {
+			mouse_select_start = state.mouse_position;
+			mouse_select_end = mouse_select_start;
+		} else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+			mouse_select_end = state.mouse_position;
+		}
+
+		state.mouse_selection.x = min(mouse_select_start.x, mouse_select_end.x);
+		state.mouse_selection.y = min(mouse_select_start.y, mouse_select_end.y);
+		state.mouse_selection.width = diff(mouse_select_start.x, mouse_select_end.x);
+		state.mouse_selection.height = diff(mouse_select_start.y, mouse_select_end.y);
 
 		for (codepoint = GetCharPressed(); codepoint != 0; codepoint = GetCharPressed()) {
 			gb_insert(ed.focused_buffer, codepoint);
@@ -120,6 +104,10 @@ int main(int argc, char **argv) {
 		y = 0;
 
 		win_draw(&win, &ed, &state, x, y, screen_width, screen_height);
+
+		/* Color c = ORANGE; */
+		/* c.a = 100; */
+		/* DrawRectangleRec(state.mouse_selection, c); */
 
 		EndDrawing();
 	}
