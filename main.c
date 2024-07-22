@@ -1,119 +1,65 @@
 #include "raylib.h"
-#include <stdlib.h>
 
 static Font font;
 static float font_size;
-static int LINE_HEIGHT = 20;
+static int LINE_HEIGHT = 25;
 static int MARGIN = 5;
 
-typedef struct gap_buffer {
-	// the data stored by the buffer
-	int *data;
+typedef struct frame_state {
+	Vector2 mouse_position;
+	bool mouse_pressed;
+} frame_state;
 
-	// The start index of the gap
-	int start;
+#include "gap_buffer.c"
 
-	// the end index of the gap
-	int end;
+typedef struct editor {
+	gap_buffer *focused_buffer;
+} editor;
 
-	// the capacity of the entire buffer
-	int cap;
-} gap_buffer;
+typedef struct window {
+	gap_buffer header_buffer;
+	gap_buffer body_buffer;
+} window;
 
-void gb_init(gap_buffer *gb, int size) {
-	gb->data = (int *)malloc(sizeof(int)*size);
-	gb->start = 0;
-	gb->end = size;
-	gb->cap = size;
+void win_init(window *w) {
+	gb_init(&(w->header_buffer), 256);
+	gb_init(&(w->body_buffer), 256);
 }
 
-void gb_insert(gap_buffer *gb, int codepoint) {
-	gb->data[(gb->start)++] = codepoint;
-}
+void win_draw(window *w, editor *ed, frame_state *state, int x, int y, int width, int height) {
+	int header_height = LINE_HEIGHT;
 
-void gb_delete(gap_buffer *gb) {
-	--(gb->start);
-}
+	Rectangle rect;
+	rect.x = x;
+	rect.y = y;
+	rect.width = width;
+	rect.height = header_height;
 
-void gb_move(gap_buffer *gb, int i) {
-	if (i == gb->start || i < 0) {
-		return;
+	DrawRectangleRec(rect, BLUE);
+	DrawRectangleLinesEx(rect, 1, BLACK);
+	gb_draw(&(w->header_buffer), font, font_size, LINE_HEIGHT, x+5, y+5, width, height);
+
+	if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
+		ed->focused_buffer = &(w->header_buffer);
 	}
 	
-	int j, diff;
-	if (i < gb->start) {
-		diff = gb->start - i;
+	y += LINE_HEIGHT;
 
-		for (j = 0; j < diff; ++j) {
-			gb->data[gb->end-1] = gb->data[gb->start-1];
-			--(gb->start);
-			--(gb->end);
-		}
-	} else {
-		diff = i - gb->start;
+	rect.x = x;
+	rect.y = y;
+	rect.width = width;
+	rect.height = height;
 
-		if (gb->end + diff > gb->cap) {
-			return;
-		}
+	DrawRectangleRec(rect, GRAY);
+	gb_draw(&(w->body_buffer), font, font_size, LINE_HEIGHT, x+5, y+5, width, height);
 
-		for (j = 0; j < diff; ++j) {
-			gb->data[(gb->start)++] = gb->data[(gb->end)++];
-		}
+	if (state->mouse_pressed && CheckCollisionPointRec(state->mouse_position, rect)) {
+		ed->focused_buffer = &(w->body_buffer);
 	}
 }
 
-gb_draw(gap_buffer *gb, int x, int y, int w, int h) {
-	DrawRectangle(x, y, w, h, BLACK);
-	DrawRectangleLines(x, y, w, h, YELLOW);
-
-	int i, codepoint;
-	Vector2 pos;
-	Rectangle rect;
-
-	pos.x = x + MARGIN;
-	pos.y = y + MARGIN;
-
-	for (i = 0; i < gb->start; ++i) {
-		codepoint = gb->data[i];
-
-		if (codepoint == '\n') {
-			pos.x = x+5;
-			pos.y += LINE_HEIGHT;
-			continue;
-		}
-
-		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
-
-		rect = GetGlyphAtlasRec(font, codepoint);
-
-		pos.x += rect.width;
-	}
-
-	DrawRectangle(pos.x, pos.y, 2, LINE_HEIGHT, WHITE);
-
-	for (i = gb->end; i < gb->cap; ++i) {
-		codepoint = gb->data[i];
-
-		if (codepoint == '\n') {
-			pos.x = x+5;
-			pos.y += LINE_HEIGHT;
-			continue;
-		}
-
-		DrawTextCodepoint(font, codepoint, pos, font_size, WHITE);
-
-		rect = GetGlyphAtlasRec(font, codepoint);
-
-		pos.x += rect.width;
-	}
-}
-
-void draw_menu(int x, int y, int w, int h) {
-	DrawRectangle(x, y, w, h, PURPLE);
-}
-
-void draw_status_bar(int x, int y, int w, int h) {
-	DrawRectangle(x, y, w, h, BLUE);
+void win_handle_char_pressed(window *w, int codepoint) {
+	gb_insert(&(w->body_buffer), codepoint);
 }
 
 int main(int argc, char **argv) {
@@ -125,16 +71,24 @@ int main(int argc, char **argv) {
 	font_size = 24;
 	font = LoadFontEx("C:\\Windows\\Fonts\\consola.ttf", font_size, 0, 0);
 
-	gap_buffer gb;
-	gb_init(&gb, 256);
+	window win;
+	win_init(&win);
+
+	editor ed;
+	ed.focused_buffer = &(win.header_buffer);
 
 	int x, y, screen_width, screen_height;
-	int key;
+	int codepoint;
+	frame_state state;
 
 	while (!WindowShouldClose()) {
-		for (key = GetCharPressed(); key != 0; key = GetCharPressed()) {
-			gb_insert(&gb, key);
+		state.mouse_position = GetMousePosition();
+		state.mouse_pressed = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+		for (codepoint = GetCharPressed(); codepoint != 0; codepoint = GetCharPressed()) {
+			gb_insert(ed.focused_buffer, codepoint);
 		}
+#if 0
 
 		for (key = GetKeyPressed(); key != 0; key = GetKeyPressed()) {
 			switch (key) {
@@ -155,6 +109,7 @@ int main(int argc, char **argv) {
 					break;
 			}
 		}
+#endif
 
 		BeginDrawing();
 
@@ -166,13 +121,7 @@ int main(int argc, char **argv) {
 		x = 0;
 		y = 0;
 
-		draw_menu(x, y, screen_width, LINE_HEIGHT);
-		y += LINE_HEIGHT;
-
-		gb_draw(&gb, x, y, screen_width, screen_height-y-LINE_HEIGHT);
-
-		y = screen_height - LINE_HEIGHT;
-		draw_status_bar(x, y, screen_width, LINE_HEIGHT);
+		win_draw(&win, &ed, &state, x, y, screen_width, screen_height);
 
 		EndDrawing();
 	}
