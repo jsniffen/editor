@@ -12,6 +12,19 @@ when ODIN_OS == .Windows {
 FONT_SIZE :: 32
 LINE_HEIGHT :: 32
 
+COLOR_TAG_BG := rl.GetColor(0xEAFFFFFF)
+COLOR_TAG_TEXT := rl.GetColor(0x00000FF)
+COLOR_TAG_TEXT_SELECT := rl.GetColor(0x9EEEEEFF)
+
+COLOR_BODY_BG := rl.GetColor(0xFFFFEAFF)
+COLOR_BODY_TEXT := rl.GetColor(0x000000FF)
+COLOR_BODY_TEXT_SELECT := rl.GetColor(0xEEEE9EFF)
+
+editor :: struct {
+	focused_gb: ^gap_buffer,
+	font: rl.Font,
+}
+
 frame_state :: struct {
 	mouse_position: rl.Vector2,
 	left_mouse_pressed: bool,
@@ -138,52 +151,52 @@ gb_execute :: proc (gb: ^gap_buffer, cmd: [dynamic]rune) {
 	}
 }
 
-gb_draw :: proc(gb: ^gap_buffer, font: rl.Font, state: frame_state, x, y, w, h: i32) {
-	pos := rl.Vector2{f32(x), f32(y)}
+gb_draw :: proc(gb: ^gap_buffer, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
+	pos := rl.Vector2{rec.x, rec.y}
 
 	to_move := 0
 	cursor: rl.Rectangle
 
 	for i := 0; i < gb.cap; i += 1 {
 		if i == gb.start {
-			cursor = {x = pos.x, y = pos.y, width = 2, height = LINE_HEIGHT}
+			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 			i = gb.end - 1
 			continue
 		}
 		r := gb.data[i]
 
 		if r == '\n' {
-			pos.x = f32(x)
+			pos.x = rec.x
 			pos.y += LINE_HEIGHT
 			continue
 		}
 
-		info := rl.GetGlyphInfo(font, r)
-		rect := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
+		info := rl.GetGlyphInfo(ed.font, r)
+		glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
 
 		if r == '\t' {
-			info = rl.GetGlyphInfo(font, ' ')
-			rect = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
+			info = rl.GetGlyphInfo(ed.font, ' ')
+			glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
 		}
 
-		if state.middle_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, rect) {
+		if state.middle_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
 			word := gb_get_word(gb, i)
 			gb_execute(gb, word)
 		}
 
-		if state.left_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, rect) {
+		if state.left_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
 			to_move = i
 		}
 
-		if rl.CheckCollisionRecs(state.mouse_selection, rect) {
-			rl.DrawRectangleRec(rect, rl.RED)
+		if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
+			rl.DrawRectangleRec(glyph_rec, bg)
 		}
 
 		if r != ' ' && r != '\t' {
-			rl.DrawTextCodepoint(font, r, pos, FONT_SIZE, rl.WHITE)
+			rl.DrawTextCodepoint(ed.font, r, pos, FONT_SIZE, fg)
 		}
 
-		pos.x += f32(rect.width)
+		pos.x += f32(glyph_rec.width)
 	}
 
 	if to_move != 0 {
@@ -195,7 +208,32 @@ gb_draw :: proc(gb: ^gap_buffer, font: rl.Font, state: frame_state, x, y, w, h: 
 		gb_move(gb, to_move)
 	}
 
-	rl.DrawRectangleRec(cursor, rl.BLACK)
+	rl.DrawRectangleRec(cursor, fg)
+
+	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
+		ed.focused_gb = gb
+	}
+}
+
+window :: struct {
+	tag: gap_buffer,
+	body: gap_buffer,
+}
+
+win_init :: proc(win: ^window) {
+	gb_init(&win.tag, 256)
+	gb_init(&win.body, 256)
+}
+
+win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangle) {
+	rec := rec
+
+	rl.DrawRectangleRec(rec, COLOR_TAG_BG)
+	gb_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
+
+	rec.y += LINE_HEIGHT
+	rl.DrawRectangleRec(rec, COLOR_BODY_BG)
+	gb_draw(&win.body, ed, state, rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT)
 }
 
 main :: proc() {
@@ -203,30 +241,34 @@ main :: proc() {
 
 	rl.SetWindowState({.WINDOW_RESIZABLE})
 
-	font := rl.LoadFontEx(FONT_PATH, FONT_SIZE, nil, 0)
+	ed: editor
 
-	gb: gap_buffer
-	gb_init(&gb, 256)
+	ed.font = rl.LoadFontEx(FONT_PATH, FONT_SIZE, nil, 0)
+
+	win: window
+	win_init(&win)
 
 	mouse_select_start, mouse_select_end: rl.Vector2
 
 	for !rl.WindowShouldClose() {
-		for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-			gb_insert(&gb, r)
-		}
+		if ed.focused_gb != nil {
+			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
+				gb_insert(ed.focused_gb, r)
+			}
 
-		for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
-			#partial switch k {
-			case .ENTER:
-				gb_insert(&gb, '\n')
-			case .TAB:
-				gb_insert(&gb, '\t')
-			case .BACKSPACE:
-				gb_delete(&gb)
-			case .LEFT:
-				gb_move(&gb, -1)
-			case .RIGHT:
-				gb_move(&gb, 1)
+			for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
+				#partial switch k {
+				case .ENTER:
+					gb_insert(ed.focused_gb, '\n')
+				case .TAB:
+					gb_insert(ed.focused_gb, '\t')
+				case .BACKSPACE:
+					gb_delete(ed.focused_gb)
+				case .LEFT:
+					gb_move(ed.focused_gb, -1)
+				case .RIGHT:
+					gb_move(ed.focused_gb, 1)
+				}
 			}
 		}
 
@@ -252,9 +294,9 @@ main :: proc() {
 
 		rl.ClearBackground(rl.PURPLE)
 
-		w, h := rl.GetScreenWidth(), rl.GetScreenHeight()
+		w, h: = f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 
-		gb_draw(&gb, font, state, 0, 0, w, h)
+		win_draw(&win, &ed, state, {0, 0, w, h})
 
 		rl.EndDrawing()
 	}
