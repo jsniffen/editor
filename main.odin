@@ -3,13 +3,19 @@ package main
 import rl "vendor:raylib"
 import "core:fmt"
 
-FONT_PATH :: "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+when ODIN_OS == .Windows {
+	FONT_PATH :: "C:\\Windows\\Fonts\\consola.ttf"
+} else when ODIN_OS == .Linux {
+	FONT_PATH :: "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+}
+
 FONT_SIZE :: 32
 LINE_HEIGHT :: 32
 
 frame_state :: struct {
 	mouse_position: rl.Vector2,
-	mouse_pressed: bool,
+	left_mouse_pressed: bool,
+	middle_mouse_pressed: bool,
 	mouse_selection: rl.Rectangle,
 }
 
@@ -74,6 +80,64 @@ gb_move :: proc(gb: ^gap_buffer, diff: int) {
 	}
 }
 
+gb_get_word :: proc(gb: ^gap_buffer, i: int) -> [dynamic]rune {
+	start, end := 0, 0
+
+	for j := i; j >= 0; j -= 1 {
+		if j == gb.end - 1 {
+			j = gb.start
+			continue
+		}
+
+		r := gb.data[j]
+
+		if r == '\n' || r == ' ' || r == '\t' {
+			break
+		}
+
+		start = j
+	}
+
+	for j := i; j < gb.cap; j += 1 {
+		if j == gb.start {
+			j = gb.end - 1
+			continue
+		}
+
+		r := gb.data[j]
+
+		if r == '\n' || r == ' ' || r == '\t' {
+			break
+		}
+
+		end = j
+	}
+
+	buffer := make([dynamic]rune)
+	for j := start; j <= end; j += 1 {
+		if j == gb.start {
+			j = gb.end - 1
+		}
+		append(&buffer, gb.data[j])
+	}
+
+	return buffer
+}
+
+gb_execute :: proc (gb: ^gap_buffer, cmd: [dynamic]rune) {
+	if len(cmd) == 3 {
+
+		if cmd[0] == 'P' && cmd[1] == 'u' && cmd[2] == 't' {
+			fmt.println("Save buffer")
+		}
+
+		if cmd[0] == 'D' && cmd[1] == 'e' && cmd[2] == 'l' {
+			fmt.println("Delete buffer")
+		}
+
+	}
+}
+
 gb_draw :: proc(gb: ^gap_buffer, font: rl.Font, state: frame_state, x, y, w, h: i32) {
 	pos := rl.Vector2{f32(x), f32(y)}
 
@@ -95,10 +159,19 @@ gb_draw :: proc(gb: ^gap_buffer, font: rl.Font, state: frame_state, x, y, w, h: 
 		}
 
 		info := rl.GetGlyphInfo(font, r)
-
 		rect := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
 
-		if state.mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, rect) {
+		if r == '\t' {
+			info = rl.GetGlyphInfo(font, ' ')
+			rect = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
+		}
+
+		if state.middle_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, rect) {
+			word := gb_get_word(gb, i)
+			gb_execute(gb, word)
+		}
+
+		if state.left_mouse_pressed && rl.CheckCollisionPointRec(state.mouse_position, rect) {
 			to_move = i
 		}
 
@@ -106,9 +179,11 @@ gb_draw :: proc(gb: ^gap_buffer, font: rl.Font, state: frame_state, x, y, w, h: 
 			rl.DrawRectangleRec(rect, rl.RED)
 		}
 
-		rl.DrawTextCodepoint(font, r, pos, FONT_SIZE, rl.WHITE)
+		if r != ' ' && r != '\t' {
+			rl.DrawTextCodepoint(font, r, pos, FONT_SIZE, rl.WHITE)
+		}
 
-		pos.x += f32(info.advanceX)
+		pos.x += f32(rect.width)
 	}
 
 	if to_move != 0 {
@@ -144,6 +219,8 @@ main :: proc() {
 			#partial switch k {
 			case .ENTER:
 				gb_insert(&gb, '\n')
+			case .TAB:
+				gb_insert(&gb, '\t')
 			case .BACKSPACE:
 				gb_delete(&gb)
 			case .LEFT:
@@ -155,10 +232,11 @@ main :: proc() {
 
 		state := frame_state{
 			mouse_position = rl.GetMousePosition(),
-			mouse_pressed = rl.IsMouseButtonPressed(.LEFT),
+			left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT),
+			middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE),
 		}
 
-		if state.mouse_pressed {
+		if state.left_mouse_pressed {
 			mouse_select_start = state.mouse_position
 			mouse_select_end = mouse_select_start
 		} else if rl.IsMouseButtonDown(.LEFT) || rl.IsMouseButtonReleased(.LEFT) {
