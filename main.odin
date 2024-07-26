@@ -30,6 +30,14 @@ frame_state :: struct {
 	left_mouse_pressed: bool,
 	middle_mouse_pressed: bool,
 	mouse_selection: rl.Rectangle,
+
+	// when there is a mouse selection, this encodes
+	// where the mouse is relative to the selection box.
+	// [ 1,  1]: top right
+	// [ 1, -1]: bottom right
+	// [-1, -1]: bottom left
+	// [-1,  1]: top left
+	mouse_selection_pos: rl.Vector2,
 }
 
 gap_buffer :: struct {
@@ -156,6 +164,7 @@ gb_draw :: proc(gb: ^gap_buffer, ed: ^editor, state: frame_state, rec: rl.Rectan
 
 	to_move := 0
 	cursor: rl.Rectangle
+	selected := false
 
 	for i := 0; i < gb.cap; i += 1 {
 		if i == gb.start {
@@ -188,8 +197,37 @@ gb_draw :: proc(gb: ^gap_buffer, ed: ^editor, state: frame_state, rec: rl.Rectan
 			to_move = i
 		}
 
-		if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
-			rl.DrawRectangleRec(glyph_rec, bg)
+		{
+			// mouse is at top right or bottom left of selection box
+			if state.mouse_selection_pos.x == state.mouse_selection_pos.y {
+				if state.mouse_selection.width > 0 && state.mouse_selection.height > 0 && rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
+					rl.DrawRectangleRec(glyph_rec, bg)
+					selected = true
+				}
+
+				if selected {
+					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
+						rl.DrawRectangleRec(glyph_rec, bg)
+					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x + state.mouse_selection.width {
+						rl.DrawRectangleRec(glyph_rec, bg)
+					}
+				}
+			// mouse is at top left or bottom right of selection box
+			} else {
+				if glyph_rec.y < state.mouse_selection.y && glyph_rec.y + glyph_rec.height > state.mouse_selection.y && glyph_rec.x > state.mouse_selection.x + state.mouse_selection.width {
+						rl.DrawRectangleRec(glyph_rec, bg)
+						selected = true
+				}
+
+				if selected {
+					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
+						rl.DrawRectangleRec(glyph_rec, bg)
+					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x {
+						rl.DrawRectangleRec(glyph_rec, bg)
+					}
+
+				}
+			}
 		}
 
 		if r != ' ' && r != '\t' {
@@ -208,7 +246,9 @@ gb_draw :: proc(gb: ^gap_buffer, ed: ^editor, state: frame_state, rec: rl.Rectan
 		gb_move(gb, to_move)
 	}
 
-	rl.DrawRectangleRec(cursor, fg)
+	if !selected {
+		rl.DrawRectangleRec(cursor, fg)
+	}
 
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
 		ed.focused_gb = gb
@@ -240,6 +280,7 @@ main :: proc() {
 	rl.InitWindow(400, 400, "test")
 
 	rl.SetWindowState({.WINDOW_RESIZABLE})
+	rl.SetTargetFPS(60)
 
 	ed: editor
 
@@ -289,6 +330,9 @@ main :: proc() {
 		state.mouse_selection.y = min(mouse_select_start.y, mouse_select_end.y)
 		state.mouse_selection.width = abs(mouse_select_start.x - mouse_select_end.x)
 		state.mouse_selection.height = abs(mouse_select_start.y - mouse_select_end.y)
+
+		state.mouse_selection_pos.x = 1 if mouse_select_end.x > mouse_select_start.x else -1
+		state.mouse_selection_pos.y = 1 if mouse_select_end.y > mouse_select_start.y else -1 
 
 		rl.BeginDrawing()
 
