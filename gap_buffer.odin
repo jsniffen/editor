@@ -235,7 +235,7 @@ gb_draw :: proc(gb: ^gap_buffer, ed: ^editor, state: frame_state, rec: rl.Rectan
 	}
 
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
-		ed.focused_gb = gb
+		// ed.focused_gb = gb
 	}
 }
 

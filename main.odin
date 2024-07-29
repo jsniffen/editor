@@ -21,7 +21,7 @@ COLOR_BODY_TEXT := rl.GetColor(0x000000FF)
 COLOR_BODY_TEXT_SELECT := rl.GetColor(0xEEEE9EFF)
 
 editor :: struct {
-	focused_gb: ^gap_buffer,
+	focused_pt: ^piece_table,
 	font: rl.Font,
 }
 
@@ -41,24 +41,24 @@ frame_state :: struct {
 }
 
 window :: struct {
-	tag: gap_buffer,
-	body: gap_buffer,
+	tag: piece_table,
+	body: piece_table,
 }
 
 win_init :: proc(win: ^window) {
-	gb_init(&win.tag, 256)
-	gb_init(&win.body, 256)
+	pt_init(&win.tag)
+	pt_init(&win.body)
 }
 
 win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangle) {
 	rec := rec
 
 	rl.DrawRectangleRec(rec, COLOR_TAG_BG)
-	gb_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
+	// pt_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
 
 	rec.y += LINE_HEIGHT
 	rl.DrawRectangleRec(rec, COLOR_BODY_BG)
-	gb_draw(&win.body, ed, state, rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT)
+	pt_draw(&win.body, ed, state, rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT)
 }
 
 main :: proc() {
@@ -77,28 +77,42 @@ main :: proc() {
 	mouse_select_start, mouse_select_end: rl.Vector2
 
 	for !rl.WindowShouldClose() {
-		if ed.focused_gb != nil {
+		for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
+			pt_insert(&win.body, r)
+		}
+
+		for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
+			#partial switch k {
+			case .LEFT:
+				pt_move_left(&win.body)
+			case .RIGHT:
+				pt_move_right(&win.body)
+			}
+		}
+		/*
+		if ed.focused_pt != nil {
 			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-				gb_insert(ed.focused_gb, r)
+				gb_insert(ed.focused_pt, r)
 			}
 
 			for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
 				#partial switch k {
 				case .ENTER:
-					gb_insert(ed.focused_gb, '\n')
+					gb_insert(ed.focused_pt, '\n')
 				case .TAB:
-					gb_insert(ed.focused_gb, '\t')
+					gb_insert(ed.focused_pt, '\t')
 				case .BACKSPACE:
-					gb_delete(ed.focused_gb)
+					gb_delete(ed.focused_pt)
 				case .LEFT:
-					gb_reset_selection(ed.focused_gb)
-					gb_move(ed.focused_gb, -1)
+					gb_reset_selection(ed.focused_pt)
+					gb_move(ed.focused_pt, -1)
 				case .RIGHT:
-					gb_reset_selection(ed.focused_gb)
-					gb_move(ed.focused_gb, 1)
+					gb_reset_selection(ed.focused_pt)
+					gb_move(ed.focused_pt, 1)
 				}
 			}
 		}
+		*/
 
 		state := frame_state{
 			mouse_position = rl.GetMousePosition(),
