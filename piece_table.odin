@@ -2,16 +2,13 @@ package main
 
 import rl "vendor:raylib"
 import "core:fmt"
-
-piece_table_entry_kind :: enum {
-	ORIGINAL,
-	APPEND
-}
+import "core:strings"
+import "core:os"
 
 piece_table_entry :: struct {
 	start: int,
-	len: int,
-	kind: piece_table_entry_kind,
+	length: int,
+	is_original: bool,
 }
 
 piece_table :: struct {
@@ -21,94 +18,30 @@ piece_table :: struct {
 	cursor: int,
 }
 
+pt_cursor_move :: proc(pt: ^piece_table, i: int) {
+	if pt.cursor + i < 0 {
+		return
+	}
+
+	total_length := 0
+	for entry in pt.entries {
+		total_length += entry.length
+	}
+
+	if pt.cursor + i > total_length {
+		return
+	}
+
+	pt.cursor += i
+}
+
 pt_init :: proc(pt: ^piece_table) {
 	contents :: "hello, world"
 
 	pt.entries = make([dynamic]piece_table_entry)
 	pt.original_buf = make([dynamic]rune)
 	pt.append_buf = make([dynamic]rune)
-	pt.cursor = len(contents)
-
-	entry := piece_table_entry{
-		start=0,
-		len=len(contents),
-		kind=.ORIGINAL,
-	}
-	append(&pt.entries, entry)
-
-	for codepoint in contents {
-		append(&pt.original_buf, codepoint)
-	}
-}
-
-pt_move_left :: proc(pt: ^piece_table) {
-	if pt.cursor > 0 {
-		pt.cursor -= 1
-	}
-}
-
-pt_move_right :: proc(pt: ^piece_table) {
-	total_length := 0
-	for entry in pt.entries {
-		total_length += entry.len
-	}
-	if pt.cursor < total_length {
-		pt.cursor += 1
-	}
-}
-
-pt_insert :: proc(pt: ^piece_table, codepoint: rune) {
-	append(&pt.append_buf, codepoint)
-
-	l := 0
-	for &entry, i in pt.entries {
-		l += entry.len
-		if pt.cursor < l {
-			pivot := entry.len - (l - pt.cursor)
-
-			if pivot == 1 {
-				new := piece_table_entry{
-					kind=.APPEND,
-					start=len(pt.append_buf)-1,
-					len=1,
-				}
-				inject_at(&pt.entries, i, new)
-			} else {
-				new := piece_table_entry{
-					kind=.APPEND,
-					start=len(pt.append_buf)-1,
-					len=1,
-				}
-				inject_at(&pt.entries, i+1, new)
-
-				next := piece_table_entry{
-					kind=entry.kind,
-					start=pivot,
-					len=entry.len-pivot,
-				}
-				inject_at(&pt.entries, i+2, next)
-
-				entry.len = pivot
-			}
-
-			break
-		}
-	}
-
-	if pt.cursor == l {
-		// we're adding a codepoint to the very end of the file
-		entry := piece_table_entry{
-			kind=.APPEND,
-			start=len(pt.append_buf)-1,
-			len=1,
-		}
-		append(&pt.entries, entry)
-	}
-
-	pt.cursor += 1
-}
-
-pt_delete :: proc(pt: ^piece_table, i: int) {
+	pt.cursor = 0
 }
 
 pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) { 
@@ -117,9 +50,9 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 
 	codepoint_i := 0
 	for entry in pt.entries {
-		buf := pt.original_buf if entry.kind == .ORIGINAL else pt.append_buf
+		buf := pt.original_buf if entry.is_original else pt.append_buf
 
-		for i := entry.start; i < entry.start+entry.len; i += 1 {
+		for i := entry.start; i < entry.start+entry.length; i += 1 {
 			if pt.cursor == codepoint_i {
 				cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 			}
@@ -149,9 +82,150 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 		}
 	}
 
-
 	if pt.cursor == codepoint_i {
 		cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 	}
 	rl.DrawRectangleRec(cursor, fg)
+}
+
+pt_to_string :: proc(pt: piece_table) -> string {
+	builder: strings.Builder
+	for entry in pt.entries {
+		buf := pt.original_buf if entry.is_original else pt.append_buf
+		for i := entry.start; i < entry.start + entry.length; i += 1 {
+			strings.write_rune(&builder, buf[i])
+		}
+	}
+	return strings.to_string(builder)
+}
+
+pt_load_file :: proc(pt: ^piece_table, filename: string) -> bool {
+	b, ok := os.read_entire_file(filename)
+	if !ok {
+		return false
+	}
+
+	contents, err := strings.clone_from_bytes(b)
+	if err != nil {
+		return false
+	}
+
+	pt_load(pt, contents)
+	return true
+}
+
+pt_load :: proc(pt: ^piece_table, s: string) {
+	for codepoint in s {
+		append(&pt.original_buf, codepoint)
+	}
+	append(&pt.entries, piece_table_entry{
+		start=0,
+		length=len(s),
+		is_original=true,
+	})
+}
+
+pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
+	if cursor < 0 {
+		return
+	}
+
+	start := 0
+	i := 0
+
+	for entry in pt.entries {
+		if cursor < start + entry.length {
+			break
+		}
+
+		start += entry.length
+		i += 1
+	}
+
+	if cursor == start {
+		append(&pt.append_buf, codepoint)
+		if i > 0 && !pt.entries[i-1].is_original && pt.entries[i-1].start + pt.entries[i-1].length == len(pt.append_buf)-1 {
+			pt.entries[i-1].length += 1
+		} else {
+			inject_at(&pt.entries, i, piece_table_entry{
+				start = len(pt.append_buf)-1,
+				length = 1,
+				is_original = false,
+			})
+		}
+	} else if i < len(pt.entries) {
+		append(&pt.append_buf, codepoint)
+
+		entry := pt.entries[i]
+
+		pivot := cursor - entry.start
+
+		inject_at(&pt.entries, i+1, piece_table_entry{
+			start = len(pt.append_buf)-1,
+			length = 1,
+			is_original = false,
+		})
+
+		inject_at(&pt.entries, i+2, piece_table_entry{
+			start = pivot,
+			length = entry.length - pivot,
+			is_original = entry.is_original,
+		})
+
+		pt.entries[i].length = pivot
+		return
+	}
+}
+
+pt_delete :: proc(pt: ^piece_table, cursor: int) {
+	if cursor < 0 {
+		return
+	}
+
+	start := 0
+	i := 0
+
+	for entry in pt.entries {
+		if cursor < start + entry.length {
+			break
+		}
+
+		start += entry.length
+		i += 1
+	}
+
+	if i < len(pt.entries) {
+		if cursor == start {
+			pt.entries[i].start += 1
+			pt.entries[i].length -= 1
+
+			if (pt.entries[i].length == 0) {
+				ordered_remove(&pt.entries, i)
+			}
+		} else if cursor == start + pt.entries[i].length - 1 {
+			pt.entries[i].length -= 1
+		} else {
+			entry := pt.entries[i]
+
+			pivot := cursor - start
+
+			inject_at(&pt.entries, i+1, piece_table_entry{
+				start = entry.start + pivot + 1,
+				length = entry.length - pivot - 1,
+				is_original = entry.is_original,
+			})
+
+			pt.entries[i].length = pivot
+		}
+	}
+}
+
+pt_cursor_insert :: proc(pt: ^piece_table, r: rune) {
+	pt_insert(pt, r, pt.cursor)
+	pt_cursor_move(pt, 1)
+}
+
+pt_cursor_delete :: proc(pt: ^piece_table) {
+	pt_delete(pt, pt.cursor-1)
+	pt_cursor_move(pt, -1)
 }

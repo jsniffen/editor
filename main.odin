@@ -78,17 +78,20 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-			pt_insert(&win.body, r)
+			pt_cursor_insert(&win.body, r)
 		}
 
 		for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
 			#partial switch k {
 			case .LEFT:
-				pt_move_left(&win.body)
+				pt_cursor_move(&win.body, -1)
 			case .RIGHT:
-				pt_move_right(&win.body)
+				pt_cursor_move(&win.body, 1)
+			case .BACKSPACE:
+				pt_cursor_delete(&win.body)
 			}
 		}
+
 		/*
 		if ed.focused_pt != nil {
 			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
