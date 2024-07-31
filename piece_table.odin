@@ -46,6 +46,10 @@ pt_init :: proc(pt: ^piece_table) {
 }
 
 pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) { 
+	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
+		ed.focused_buffer = pt
+	}
+
 	pos := rl.Vector2{rec.x, rec.y}
 	cursor: rl.Rectangle
 
@@ -63,6 +67,7 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 			if r == '\n' {
 				pos.x = rec.x
 				pos.y += LINE_HEIGHT
+				codepoint_i += 1
 				continue
 			}
 

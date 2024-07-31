@@ -21,7 +21,7 @@ COLOR_BODY_TEXT := rl.GetColor(0x000000FF)
 COLOR_BODY_TEXT_SELECT := rl.GetColor(0xEEEE9EFF)
 
 editor :: struct {
-	focused_pt: ^piece_table,
+	focused_buffer: ^piece_table,
 	font: rl.Font,
 }
 
@@ -54,7 +54,7 @@ win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangl
 	rec := rec
 
 	rl.DrawRectangleRec(rec, COLOR_TAG_BG)
-	// pt_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
+	pt_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
 
 	rec.y += LINE_HEIGHT
 	rl.DrawRectangleRec(rec, COLOR_BODY_BG)
@@ -74,48 +74,31 @@ main :: proc() {
 	win: window
 	win_init(&win)
 
+	ed.focused_buffer = &win.body
+
 	mouse_select_start, mouse_select_end: rl.Vector2
 
 	for !rl.WindowShouldClose() {
-		for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-			pt_cursor_insert(&win.body, r)
-		}
-
-		for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
-			#partial switch k {
-			case .LEFT:
-				pt_cursor_move(&win.body, -1)
-			case .RIGHT:
-				pt_cursor_move(&win.body, 1)
-			case .BACKSPACE:
-				pt_cursor_delete(&win.body)
-			}
-		}
-
-		/*
-		if ed.focused_pt != nil {
+		if ed.focused_buffer != nil {
 			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-				gb_insert(ed.focused_pt, r)
+				pt_cursor_insert(ed.focused_buffer, r)
 			}
 
 			for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
 				#partial switch k {
 				case .ENTER:
-					gb_insert(ed.focused_pt, '\n')
+					pt_cursor_insert(ed.focused_buffer, '\n')
 				case .TAB:
-					gb_insert(ed.focused_pt, '\t')
-				case .BACKSPACE:
-					gb_delete(ed.focused_pt)
+					pt_cursor_insert(ed.focused_buffer, '\t')
 				case .LEFT:
-					gb_reset_selection(ed.focused_pt)
-					gb_move(ed.focused_pt, -1)
+					pt_cursor_move(ed.focused_buffer, -1)
 				case .RIGHT:
-					gb_reset_selection(ed.focused_pt)
-					gb_move(ed.focused_pt, 1)
+					pt_cursor_move(ed.focused_buffer, 1)
+				case .BACKSPACE:
+					pt_cursor_delete(ed.focused_buffer)
 				}
 			}
 		}
-		*/
 
 		state := frame_state{
 			mouse_position = rl.GetMousePosition(),
