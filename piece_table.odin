@@ -2,6 +2,7 @@ package main
 
 import rl "vendor:raylib"
 import "core:fmt"
+import "core:log"
 import "core:strings"
 import "core:os"
 
@@ -158,7 +159,7 @@ pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
 
 		entry := pt.entries[i]
 
-		pivot := cursor - entry.start
+		pivot := cursor - start
 
 		inject_at(&pt.entries, i+1, piece_table_entry{
 			start = len(pt.append_buf)-1,
