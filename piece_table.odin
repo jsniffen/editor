@@ -6,9 +6,15 @@ import "core:log"
 import "core:strings"
 import "core:os"
 
+TextSelection :: struct {
+	start: int,
+	end: int,
+	valid: bool,
+}
+
 PieceTableIterator :: struct {
 	// the piece table to iterate over
-	pt: piece_table,
+	pt: PieceTable,
 
 	// entry we're currently pointing at
 	entry_index: int,
@@ -20,7 +26,7 @@ PieceTableIterator :: struct {
 	index: int,
 }
 
-pt_iterator :: proc(pt: piece_table) -> PieceTableIterator {
+pt_iterator :: proc(pt: PieceTable) -> PieceTableIterator {
 	return PieceTableIterator{
 		pt=pt,
 		entry_index=0,
@@ -54,20 +60,21 @@ pt_iterator_next :: proc(it: ^PieceTableIterator) -> (rune, int, bool) {
 	return r, i, true
 }
 
-piece_table_entry :: struct {
+PieceTableEntry :: struct {
 	start: int,
 	length: int,
 	is_original: bool,
 }
 
-piece_table :: struct {
-	entries: [dynamic]piece_table_entry,
+PieceTable :: struct {
+	entries: [dynamic]PieceTableEntry,
 	original_buf: [dynamic]rune,
 	append_buf: [dynamic]rune,
 	cursor: int,
+	selection: TextSelection,
 }
 
-pt_cursor_move :: proc(pt: ^piece_table, i: int) {
+pt_cursor_move :: proc(pt: ^PieceTable, i: int) {
 	if pt.cursor + i < 0 {
 		return
 	}
@@ -84,16 +91,16 @@ pt_cursor_move :: proc(pt: ^piece_table, i: int) {
 	pt.cursor += i
 }
 
-pt_init :: proc(pt: ^piece_table) {
+pt_init :: proc(pt: ^PieceTable) {
 	contents :: "hello, world"
 
-	pt.entries = make([dynamic]piece_table_entry)
+	pt.entries = make([dynamic]PieceTableEntry)
 	pt.original_buf = make([dynamic]rune)
 	pt.append_buf = make([dynamic]rune)
 	pt.cursor = 0
 }
 
-pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
+pt_draw :: proc(pt: ^PieceTable, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
 		ed.focused_buffer = pt
 	}
@@ -141,12 +148,13 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 					select_end = i
 				}
 			} else if state.mouse_selection_pos.x == state.mouse_selection_pos.y {
-				// mouse is at top right or bottom left of selection box
+				// mouse is at top left or bottom right of selection box
 				if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
 					rl.DrawRectangleRec(glyph_rec, bg)
 					if select_start == -1 {
 						select_start = i
 					}
+					select_end = i
 				} else if select_start != -1 {
 					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
 						// the bottom of the glyph is higher than the bottom of the mouse selection
@@ -169,6 +177,7 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 					if select_start == -1 {
 						select_start = i
 					}
+					select_end = i
 				} else if select_start != -1 {
 					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
 						// the bottom of the glyph is higher than the top of the mouse selection
@@ -182,6 +191,10 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 					}
 				}
 			}
+		} else if pt.selection.valid {
+			if i >= pt.selection.start && i <= pt.selection.end {
+				rl.DrawRectangleRec(glyph_rec, bg)
+			}
 		}
 
 		if r != ' ' && r != '\t' {
@@ -191,17 +204,22 @@ pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Recta
 		pos.x += f32(glyph_rec.width)
 	}
 
-	// if we didn't set the cursor rect, the cursor is at the end of the buffer
-	if cursor.height == 0 {
-		cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
+	if select_start != -1 && select_end != -1 {
+		pt.selection.start = select_start
+		pt.selection.end = select_end
+		pt.selection.valid = true
 	}
 
-	if select_start == -1 && select_end == -1 {
+	if !pt.selection.valid {
+		if cursor.height == 0 {
+			// if we didn't set the cursor rect, the cursor is at the end of the buffer
+			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
+		}
 		rl.DrawRectangleRec(cursor, fg)
 	}
 }
 
-pt_to_string :: proc(pt: piece_table) -> string {
+pt_to_string :: proc(pt: PieceTable) -> string {
 	builder: strings.Builder
 	it := pt_iterator(pt)
 	for r in pt_iterator_next(&it) {
@@ -210,7 +228,7 @@ pt_to_string :: proc(pt: piece_table) -> string {
 	return strings.to_string(builder)
 }
 
-pt_load_file :: proc(pt: ^piece_table, filename: string) -> bool {
+pt_load_file :: proc(pt: ^PieceTable, filename: string) -> bool {
 	b, ok := os.read_entire_file(filename)
 	if !ok {
 		return false
@@ -225,18 +243,18 @@ pt_load_file :: proc(pt: ^piece_table, filename: string) -> bool {
 	return true
 }
 
-pt_load :: proc(pt: ^piece_table, s: string) {
+pt_load :: proc(pt: ^PieceTable, s: string) {
 	for codepoint in s {
 		append(&pt.original_buf, codepoint)
 	}
-	append(&pt.entries, piece_table_entry{
+	append(&pt.entries, PieceTableEntry{
 		start=0,
 		length=len(s),
 		is_original=true,
 	})
 }
 
-pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
+pt_insert :: proc(pt: ^PieceTable, codepoint: rune, cursor: int) {
 	if cursor < 0 {
 		return
 	}
@@ -258,7 +276,7 @@ pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
 		if i > 0 && !pt.entries[i-1].is_original && pt.entries[i-1].start + pt.entries[i-1].length == len(pt.append_buf)-1 {
 			pt.entries[i-1].length += 1
 		} else {
-			inject_at(&pt.entries, i, piece_table_entry{
+			inject_at(&pt.entries, i, PieceTableEntry{
 				start = len(pt.append_buf)-1,
 				length = 1,
 				is_original = false,
@@ -271,13 +289,13 @@ pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
 
 		pivot := cursor - start
 
-		inject_at(&pt.entries, i+1, piece_table_entry{
+		inject_at(&pt.entries, i+1, PieceTableEntry{
 			start = len(pt.append_buf)-1,
 			length = 1,
 			is_original = false,
 		})
 
-		inject_at(&pt.entries, i+2, piece_table_entry{
+		inject_at(&pt.entries, i+2, PieceTableEntry{
 			start = pivot,
 			length = entry.length - pivot,
 			is_original = entry.is_original,
@@ -288,7 +306,7 @@ pt_insert :: proc(pt: ^piece_table, codepoint: rune, cursor: int) {
 	}
 }
 
-pt_delete :: proc(pt: ^piece_table, cursor: int) {
+pt_delete :: proc(pt: ^PieceTable, cursor: int) {
 	if cursor < 0 {
 		return
 	}
@@ -320,7 +338,7 @@ pt_delete :: proc(pt: ^piece_table, cursor: int) {
 
 			pivot := cursor - start
 
-			inject_at(&pt.entries, i+1, piece_table_entry{
+			inject_at(&pt.entries, i+1, PieceTableEntry{
 				start = entry.start + pivot + 1,
 				length = entry.length - pivot - 1,
 				is_original = entry.is_original,
@@ -331,12 +349,12 @@ pt_delete :: proc(pt: ^piece_table, cursor: int) {
 	}
 }
 
-pt_cursor_insert :: proc(pt: ^piece_table, r: rune) {
+pt_cursor_insert :: proc(pt: ^PieceTable, r: rune) {
 	pt_insert(pt, r, pt.cursor)
 	pt_cursor_move(pt, 1)
 }
 
-pt_cursor_delete :: proc(pt: ^piece_table) {
+pt_cursor_delete :: proc(pt: ^PieceTable) {
 	pt_delete(pt, pt.cursor-1)
 	pt_cursor_move(pt, -1)
 }

@@ -5,7 +5,7 @@ import "core:testing"
 @(test)
 test_pt_load :: proc(t: ^testing.T) {
 	value :: "hello world"
-	pt: piece_table
+	pt: PieceTable
 	pt_init(&pt)
 	pt_load(&pt, value)
 	testing.expect_value(t, pt_to_string(pt), value)
@@ -13,7 +13,7 @@ test_pt_load :: proc(t: ^testing.T) {
 
 @(test)
 test_pt_insert :: proc(t: ^testing.T) {
-	pt: piece_table
+	pt: PieceTable
 	pt_init(&pt)
 
 	pt_insert(&pt, 'x', -1)
@@ -29,7 +29,7 @@ test_pt_insert :: proc(t: ^testing.T) {
 
 @(test)
 test_pt_delete :: proc(t: ^testing.T) {
-	pt: piece_table
+	pt: PieceTable
 	pt_init(&pt)
 
 	value :: "hello"
@@ -59,7 +59,7 @@ test_pt_delete :: proc(t: ^testing.T) {
 
 @(test)
 test_pt_cursor_move :: proc(t: ^testing.T) {
-	pt: piece_table
+	pt: PieceTable
 	pt_init(&pt)
 
 	value :: "hello world"

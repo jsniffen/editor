@@ -24,7 +24,7 @@ SCREEN_WIDTH :: 1280
 SCREEN_HEIGHT :: 720
 
 editor :: struct {
-	focused_buffer: ^piece_table,
+	focused_buffer: ^PieceTable,
 	font: rl.Font,
 }
 
@@ -44,8 +44,8 @@ frame_state :: struct {
 }
 
 window :: struct {
-	tag: piece_table,
-	body: piece_table,
+	tag: PieceTable,
+	body: PieceTable,
 }
 
 win_init :: proc(win: ^window) {
