@@ -6,6 +6,54 @@ import "core:log"
 import "core:strings"
 import "core:os"
 
+PieceTableIterator :: struct {
+	// the piece table to iterate over
+	pt: piece_table,
+
+	// entry we're currently pointing at
+	entry_index: int,
+
+	// the index into current entry
+	cursor: int,
+
+	// the index of the total string
+	index: int,
+}
+
+pt_iterator :: proc(pt: piece_table) -> PieceTableIterator {
+	return PieceTableIterator{
+		pt=pt,
+		entry_index=0,
+		cursor=-1,
+		index=0,
+	}
+}
+
+pt_iterator_next :: proc(it: ^PieceTableIterator) -> (rune, int, bool) {
+	r: rune
+	if it.entry_index >= len(it.pt.entries) {
+		return r, it.index, false
+	}
+	entry := it.pt.entries[it.entry_index]
+	if it.cursor == -1 {
+		it.cursor = entry.start
+	}
+	if it.cursor >= entry.start + entry.length {
+		it.entry_index += 1
+		if it.entry_index >= len(it.pt.entries) {
+			return r, it.index, false
+		}
+		entry = it.pt.entries[it.entry_index]
+		it.cursor = entry.start
+	}
+	buf := it.pt.original_buf if entry.is_original else it.pt.append_buf
+	r = buf[it.cursor]
+	i := it.index
+	it.cursor += 1
+	it.index += 1
+	return r, i, true
+}
+
 piece_table_entry :: struct {
 	start: int,
 	length: int,
@@ -45,62 +93,119 @@ pt_init :: proc(pt: ^piece_table) {
 	pt.cursor = 0
 }
 
-pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) { 
+pt_draw :: proc(pt: ^piece_table, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
 		ed.focused_buffer = pt
 	}
 
 	pos := rl.Vector2{rec.x, rec.y}
 	cursor: rl.Rectangle
+	it := pt_iterator(pt^)
+	select_start := -1
+	select_end := -1
 
-	codepoint_i := 0
-	for entry in pt.entries {
-		buf := pt.original_buf if entry.is_original else pt.append_buf
-
-		for i := entry.start; i < entry.start+entry.length; i += 1 {
-			if pt.cursor == codepoint_i {
-				cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
-			}
-
-			r := buf[i]
-
-			if r == '\n' {
-				pos.x = rec.x
-				pos.y += LINE_HEIGHT
-				codepoint_i += 1
-				continue
-			}
-
-			info := rl.GetGlyphInfo(ed.font, r)
-			glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
-
-			if r == '\t' {
-				info = rl.GetGlyphInfo(ed.font, ' ')
-				glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
-			}
-
-			if r != ' ' && r != '\t' {
-				rl.DrawTextCodepoint(ed.font, r, pos, FONT_SIZE, fg)
-			}
-
-			pos.x += f32(glyph_rec.width)
-			codepoint_i += 1
+	for r, i in pt_iterator_next(&it) {
+		if pt.cursor == i {
+			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 		}
+
+		if r == '\n' {
+			pos.x = rec.x
+			pos.y += LINE_HEIGHT
+			continue
+		}
+
+		info := rl.GetGlyphInfo(ed.font, r)
+		glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
+
+		if r == '\t' {
+			info = rl.GetGlyphInfo(ed.font, ' ')
+			glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
+		}
+
+		if state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
+			// TODO(Julian): 
+			// There is currently a bug where you start a selection over a span of text but end it
+			// on a blank line. We need to handle cases where selection start and end over blank lines.
+
+			// TODO(Julian):
+			// This isn't a robust solution. We need to distinguish when a mouse selection
+			// spans multiple lines or not, not just if it's taller than a single LINE_HEIGHT.
+			// This will have to do for now until we figure out if we're able to calculate lines ahead of time.
+			if state.mouse_selection.height <= LINE_HEIGHT {
+				if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
+					rl.DrawRectangleRec(glyph_rec, bg)
+					if select_start == -1 {
+						select_start = i
+					}
+					select_end = i
+				}
+			} else if state.mouse_selection_pos.x == state.mouse_selection_pos.y {
+				// mouse is at top right or bottom left of selection box
+				if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
+					rl.DrawRectangleRec(glyph_rec, bg)
+					if select_start == -1 {
+						select_start = i
+					}
+				} else if select_start != -1 {
+					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
+						// the bottom of the glyph is higher than the bottom of the mouse selection
+						rl.DrawRectangleRec(glyph_rec, bg)
+						select_end = i
+					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x + state.mouse_selection.width {
+						// the top of the glyph is higher than the bottom of the mouse selection and
+						// the left of the glyph is further left than the right side of the mouse selection
+						rl.DrawRectangleRec(glyph_rec, bg)
+						select_end = i
+					}
+				}
+			} else {
+				// mouse is at bottom left or top right of selection box
+				if glyph_rec.y < state.mouse_selection.y && glyph_rec.y + glyph_rec.height > state.mouse_selection.y && glyph_rec.x > state.mouse_selection.x + state.mouse_selection.width {
+					// the top of the glyph is higher than the top of the mouse selection and
+					// the bottom of the glyph is lower than the top of the mouse selection and
+					// the left of the glyph is further left than the mouse selection
+					rl.DrawRectangleRec(glyph_rec, bg)
+					if select_start == -1 {
+						select_start = i
+					}
+				} else if select_start != -1 {
+					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
+						// the bottom of the glyph is higher than the top of the mouse selection
+						rl.DrawRectangleRec(glyph_rec, bg)
+						select_end = i
+					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x {
+						// the top of the glyph is higher than the bottom of the mouse selection and
+						// the left of the glyph is further left than the left side of the mouse selection
+						rl.DrawRectangleRec(glyph_rec, bg)
+						select_end = i
+					}
+				}
+			}
+		}
+
+		if r != ' ' && r != '\t' {
+			rl.DrawTextCodepoint(ed.font, r, pos, FONT_SIZE, fg)
+		}
+
+		pos.x += f32(glyph_rec.width)
 	}
 
-	if pt.cursor == codepoint_i {
+	// if we didn't set the cursor rect, the cursor is at the end of the buffer
+	if cursor.height == 0 {
 		cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 	}
-	rl.DrawRectangleRec(cursor, fg)
+
+	if select_start == -1 && select_end == -1 {
+		rl.DrawRectangleRec(cursor, fg)
+	}
 }
 
 pt_to_string :: proc(pt: piece_table) -> string {
 	builder: strings.Builder
-	for entry in pt.entries {
-		buf := pt.original_buf if entry.is_original else pt.append_buf
-		for i := entry.start; i < entry.start + entry.length; i += 1 {
-			strings.write_rune(&builder, buf[i])
-		}
+	it := pt_iterator(pt)
+	for r in pt_iterator_next(&it) {
+		strings.write_rune(&builder, r)
 	}
 	return strings.to_string(builder)
 }

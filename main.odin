@@ -20,6 +20,9 @@ COLOR_BODY_BG := rl.GetColor(0xFFFFEAFF)
 COLOR_BODY_TEXT := rl.GetColor(0x000000FF)
 COLOR_BODY_TEXT_SELECT := rl.GetColor(0xEEEE9EFF)
 
+SCREEN_WIDTH :: 1280
+SCREEN_HEIGHT :: 720
+
 editor :: struct {
 	focused_buffer: ^piece_table,
 	font: rl.Font,
@@ -62,7 +65,7 @@ win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangl
 }
 
 main :: proc() {
-	rl.InitWindow(400, 400, "test")
+	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "test")
 
 	rl.SetWindowState({.WINDOW_RESIZABLE})
 	rl.SetTargetFPS(60)
