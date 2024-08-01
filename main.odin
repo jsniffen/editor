@@ -2,11 +2,14 @@ package main
 
 import rl "vendor:raylib"
 
+/*
 when ODIN_OS == .Windows {
 	FONT_PATH :: "C:\\Windows\\Fonts\\consola.ttf"
 } else when ODIN_OS == .Linux {
 	FONT_PATH :: "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 }
+*/
+FONT_PATH :: "Go-Regular.ttf"
 
 FONT_SIZE :: 32
 LINE_HEIGHT :: 32
