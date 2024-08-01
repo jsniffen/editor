@@ -76,6 +76,12 @@ pt_init :: proc(pt: ^PieceTable) {
 	pt.append_buf = make([dynamic]rune)
 }
 
+pt_reset :: proc(pt: ^PieceTable) {
+	clear(&pt.entries)
+	clear(&pt.original_buf)
+	clear(&pt.append_buf)
+}
+
 pt_to_string :: proc(pt: PieceTable) -> string {
 	builder: strings.Builder
 	it := pt_iterator(pt)
@@ -191,6 +197,9 @@ pt_delete :: proc(pt: ^PieceTable, cursor: int) {
 	}
 }
 
+// TODO(Julian): There might be a more efficient way of doing this?
+// If entire entries are enclosed in the deletion range, they can
+// just be deleted entirely
 pt_delete_range :: proc(pt: ^PieceTable, start, end: int) {
 	for i in start..<end {
 		pt_delete(pt, start)

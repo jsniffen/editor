@@ -22,15 +22,17 @@ COLOR_BODY_TEXT_SELECT := rl.GetColor(0xEEEE9EFF)
 SCREEN_WIDTH :: 1280
 SCREEN_HEIGHT :: 720
 
-editor :: struct {
+Editor :: struct {
 	focused_buffer: ^Buffer,
 	font: rl.Font,
+	load_buffer: ^Buffer,
 }
 
-frame_state :: struct {
+FrameState :: struct {
 	mouse_position: rl.Vector2,
 	left_mouse_pressed: bool,
 	middle_mouse_pressed: bool,
+	right_mouse_pressed: bool,
 	mouse_selection: rl.Rectangle,
 
 	// when there is a mouse selection, this encodes
@@ -52,7 +54,7 @@ win_init :: proc(win: ^window) {
 	buf_init(&win.body)
 }
 
-win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangle) {
+win_draw :: proc(win: ^window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) {
 	rec := rec
 
 	rl.DrawRectangleRec(rec, COLOR_TAG_BG)
@@ -69,14 +71,14 @@ main :: proc() {
 	rl.SetWindowState({.WINDOW_RESIZABLE})
 	rl.SetTargetFPS(60)
 
-	ed: editor
+	ed: Editor
 
 	ed.font = rl.LoadFontEx(FONT_PATH, FONT_SIZE, nil, 0)
 
 	win: window
 	win_init(&win)
 
-	ed.focused_buffer = &win.body
+	ed.load_buffer = &win.body
 
 	mouse_select_start, mouse_select_end: rl.Vector2
 
@@ -93,19 +95,20 @@ main :: proc() {
 				case .TAB:
 					buf_insert(ed.focused_buffer, '\t')
 				case .LEFT:
-					buf_insert(ed.focused_buffer, -1)
+					buf_cursor_move(ed.focused_buffer, -1)
 				case .RIGHT:
-					buf_insert(ed.focused_buffer, 1)
+					buf_cursor_move(ed.focused_buffer, 1)
 				case .BACKSPACE:
 					buf_delete(ed.focused_buffer)
 				}
 			}
 		}
 
-		state := frame_state{
+		state := FrameState{
 			mouse_position = rl.GetMousePosition(),
 			left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT),
 			middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE),
+			right_mouse_pressed = rl.IsMouseButtonPressed(.RIGHT),
 		}
 
 		if state.left_mouse_pressed {

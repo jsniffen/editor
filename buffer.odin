@@ -3,6 +3,7 @@ package main
 import rl "vendor:raylib"
 import "core:strings"
 import "core:os"
+import "core:fmt"
 
 TextSelection :: struct {
 	start: int,
@@ -20,6 +21,30 @@ buf_init :: proc(b: ^Buffer) {
 	pt_init(&b.pt)
 }
 
+buf_get_word :: proc(b: ^Buffer, i: int) -> (string, bool) #optional_ok {
+	builder: strings.Builder
+
+	was_whitespace := true
+
+	it := pt_iterator(b.pt)
+	for r, j in pt_iterator_next(&it) {
+		if r == '\n' || r == ' ' || r == '\t' {
+			if j > i {
+				break
+			}
+			was_whitespace = true
+		} else {
+			if was_whitespace {
+				strings.builder_reset(&builder)
+			}
+			was_whitespace = false
+			strings.write_rune(&builder, r)
+		}
+	}
+
+	return strings.to_string(builder), true
+}
+
 buf_cursor_move :: proc(b: ^Buffer, i: int) {
 	if b.cursor + i < 0 {
 		return
@@ -35,7 +60,7 @@ buf_cursor_move :: proc(b: ^Buffer, i: int) {
 	b.cursor += i
 }
 
-buf_draw :: proc(b: ^Buffer, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
+buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, fg, bg: rl.Color) {
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
 		ed.focused_buffer = b
 	}
@@ -63,6 +88,21 @@ buf_draw :: proc(b: ^Buffer, ed: ^editor, state: frame_state, rec: rl.Rectangle,
 		if r == '\t' {
 			info = rl.GetGlyphInfo(ed.font, ' ')
 			glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
+		}
+
+		if state.left_mouse_pressed {
+			if rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
+				b.cursor = i
+				cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
+				b.selection.valid = false
+			}
+		}
+
+		if state.right_mouse_pressed {
+			if rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
+				filename := buf_get_word(b, i)
+				buf_load_file(ed.load_buffer, filename)
+			}
 		}
 
 		if state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
@@ -176,6 +216,8 @@ buf_delete :: proc(b: ^Buffer) {
 }
 
 buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
+	pt_reset(&b.pt)
+
 	bytes, ok := os.read_entire_file(filename)
 	if !ok {
 		return false
