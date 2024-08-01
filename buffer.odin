@@ -1,8 +1,6 @@
 package main
 
 import rl "vendor:raylib"
-import "core:fmt"
-import "core:log"
 import "core:strings"
 import "core:os"
 

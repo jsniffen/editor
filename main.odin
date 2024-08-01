@@ -1,7 +1,6 @@
 package main
 
 import rl "vendor:raylib"
-import "core:fmt"
 
 when ODIN_OS == .Windows {
 	FONT_PATH :: "C:\\Windows\\Fonts\\consola.ttf"
