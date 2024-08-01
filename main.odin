@@ -24,7 +24,7 @@ SCREEN_WIDTH :: 1280
 SCREEN_HEIGHT :: 720
 
 editor :: struct {
-	focused_buffer: ^PieceTable,
+	focused_buffer: ^Buffer,
 	font: rl.Font,
 }
 
@@ -44,24 +44,24 @@ frame_state :: struct {
 }
 
 window :: struct {
-	tag: PieceTable,
-	body: PieceTable,
+	tag: Buffer,
+	body: Buffer,
 }
 
 win_init :: proc(win: ^window) {
-	pt_init(&win.tag)
-	pt_init(&win.body)
+	buf_init(&win.tag)
+	buf_init(&win.body)
 }
 
 win_draw :: proc(win: ^window, ed: ^editor, state: frame_state, rec: rl.Rectangle) {
 	rec := rec
 
 	rl.DrawRectangleRec(rec, COLOR_TAG_BG)
-	pt_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
+	buf_draw(&win.tag, ed, state, rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
 
 	rec.y += LINE_HEIGHT
 	rl.DrawRectangleRec(rec, COLOR_BODY_BG)
-	pt_draw(&win.body, ed, state, rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT)
+	buf_draw(&win.body, ed, state, rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT)
 }
 
 main :: proc() {
@@ -84,21 +84,21 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		if ed.focused_buffer != nil {
 			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
-				pt_cursor_insert(ed.focused_buffer, r)
+				buf_insert(ed.focused_buffer, r)
 			}
 
 			for k := rl.GetKeyPressed(); k != .KEY_NULL; k = rl.GetKeyPressed() {
 				#partial switch k {
 				case .ENTER:
-					pt_cursor_insert(ed.focused_buffer, '\n')
+					buf_insert(ed.focused_buffer, '\n')
 				case .TAB:
-					pt_cursor_insert(ed.focused_buffer, '\t')
+					buf_insert(ed.focused_buffer, '\t')
 				case .LEFT:
-					pt_cursor_move(ed.focused_buffer, -1)
+					buf_insert(ed.focused_buffer, -1)
 				case .RIGHT:
-					pt_cursor_move(ed.focused_buffer, 1)
+					buf_insert(ed.focused_buffer, 1)
 				case .BACKSPACE:
-					pt_cursor_delete(ed.focused_buffer)
+					buf_delete(ed.focused_buffer)
 				}
 			}
 		}

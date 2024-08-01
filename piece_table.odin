@@ -6,12 +6,6 @@ import "core:log"
 import "core:strings"
 import "core:os"
 
-TextSelection :: struct {
-	start: int,
-	end: int,
-	valid: bool,
-}
-
 PieceTableIterator :: struct {
 	// the piece table to iterate over
 	pt: PieceTable,
@@ -60,6 +54,14 @@ pt_iterator_next :: proc(it: ^PieceTableIterator) -> (rune, int, bool) {
 	return r, i, true
 }
 
+pt_iterator_len :: proc(it: ^PieceTableIterator) -> int {
+	count := 0
+	for _ in pt_iterator_next(it) {
+		count += 1
+	}
+	return count
+}
+
 PieceTableEntry :: struct {
 	start: int,
 	length: int,
@@ -70,153 +72,12 @@ PieceTable :: struct {
 	entries: [dynamic]PieceTableEntry,
 	original_buf: [dynamic]rune,
 	append_buf: [dynamic]rune,
-	cursor: int,
-	selection: TextSelection,
-}
-
-pt_cursor_move :: proc(pt: ^PieceTable, i: int) {
-	if pt.cursor + i < 0 {
-		return
-	}
-
-	total_length := 0
-	for entry in pt.entries {
-		total_length += entry.length
-	}
-
-	if pt.cursor + i > total_length {
-		return
-	}
-
-	pt.cursor += i
 }
 
 pt_init :: proc(pt: ^PieceTable) {
-	contents :: "hello, world"
-
 	pt.entries = make([dynamic]PieceTableEntry)
 	pt.original_buf = make([dynamic]rune)
 	pt.append_buf = make([dynamic]rune)
-	pt.cursor = 0
-}
-
-pt_draw :: proc(pt: ^PieceTable, ed: ^editor, state: frame_state, rec: rl.Rectangle, fg, bg: rl.Color) {
-	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
-		ed.focused_buffer = pt
-	}
-
-	pos := rl.Vector2{rec.x, rec.y}
-	cursor: rl.Rectangle
-	it := pt_iterator(pt^)
-	select_start := -1
-	select_end := -1
-
-	for r, i in pt_iterator_next(&it) {
-		if pt.cursor == i {
-			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
-		}
-
-		if r == '\n' {
-			pos.x = rec.x
-			pos.y += LINE_HEIGHT
-			continue
-		}
-
-		info := rl.GetGlyphInfo(ed.font, r)
-		glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
-
-		if r == '\t' {
-			info = rl.GetGlyphInfo(ed.font, ' ')
-			glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
-		}
-
-		if state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
-			// TODO(Julian): 
-			// There is currently a bug where you start a selection over a span of text but end it
-			// on a blank line. We need to handle cases where selection start and end over blank lines.
-
-			// TODO(Julian):
-			// This isn't a robust solution. We need to distinguish when a mouse selection
-			// spans multiple lines or not, not just if it's taller than a single LINE_HEIGHT.
-			// This will have to do for now until we figure out if we're able to calculate lines ahead of time.
-			if state.mouse_selection.height <= LINE_HEIGHT {
-				if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
-					rl.DrawRectangleRec(glyph_rec, bg)
-					if select_start == -1 {
-						select_start = i
-					}
-					select_end = i
-				}
-			} else if state.mouse_selection_pos.x == state.mouse_selection_pos.y {
-				// mouse is at top left or bottom right of selection box
-				if rl.CheckCollisionRecs(state.mouse_selection, glyph_rec) {
-					rl.DrawRectangleRec(glyph_rec, bg)
-					if select_start == -1 {
-						select_start = i
-					}
-					select_end = i
-				} else if select_start != -1 {
-					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
-						// the bottom of the glyph is higher than the bottom of the mouse selection
-						rl.DrawRectangleRec(glyph_rec, bg)
-						select_end = i
-					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x + state.mouse_selection.width {
-						// the top of the glyph is higher than the bottom of the mouse selection and
-						// the left of the glyph is further left than the right side of the mouse selection
-						rl.DrawRectangleRec(glyph_rec, bg)
-						select_end = i
-					}
-				}
-			} else {
-				// mouse is at bottom left or top right of selection box
-				if glyph_rec.y < state.mouse_selection.y && glyph_rec.y + glyph_rec.height > state.mouse_selection.y && glyph_rec.x > state.mouse_selection.x + state.mouse_selection.width {
-					// the top of the glyph is higher than the top of the mouse selection and
-					// the bottom of the glyph is lower than the top of the mouse selection and
-					// the left of the glyph is further left than the mouse selection
-					rl.DrawRectangleRec(glyph_rec, bg)
-					if select_start == -1 {
-						select_start = i
-					}
-					select_end = i
-				} else if select_start != -1 {
-					if glyph_rec.y + glyph_rec.height < state.mouse_selection.y + state.mouse_selection.height {
-						// the bottom of the glyph is higher than the top of the mouse selection
-						rl.DrawRectangleRec(glyph_rec, bg)
-						select_end = i
-					} else if glyph_rec.y < state.mouse_selection.y + state.mouse_selection.height && glyph_rec.x < state.mouse_selection.x {
-						// the top of the glyph is higher than the bottom of the mouse selection and
-						// the left of the glyph is further left than the left side of the mouse selection
-						rl.DrawRectangleRec(glyph_rec, bg)
-						select_end = i
-					}
-				}
-			}
-		} else if pt.selection.valid {
-			if i >= pt.selection.start && i <= pt.selection.end {
-				rl.DrawRectangleRec(glyph_rec, bg)
-			}
-		}
-
-		if r != ' ' && r != '\t' {
-			rl.DrawTextCodepoint(ed.font, r, pos, FONT_SIZE, fg)
-		}
-
-		pos.x += f32(glyph_rec.width)
-	}
-
-	if select_start != -1 && select_end != -1 {
-		pt.selection.start = select_start
-		pt.selection.end = select_end
-		pt.selection.valid = true
-	}
-
-	if !pt.selection.valid {
-		if cursor.height == 0 {
-			// if we didn't set the cursor rect, the cursor is at the end of the buffer
-			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
-		}
-		rl.DrawRectangleRec(cursor, fg)
-	}
 }
 
 pt_to_string :: proc(pt: PieceTable) -> string {
@@ -226,21 +87,6 @@ pt_to_string :: proc(pt: PieceTable) -> string {
 		strings.write_rune(&builder, r)
 	}
 	return strings.to_string(builder)
-}
-
-pt_load_file :: proc(pt: ^PieceTable, filename: string) -> bool {
-	b, ok := os.read_entire_file(filename)
-	if !ok {
-		return false
-	}
-
-	contents, err := strings.clone_from_bytes(b)
-	if err != nil {
-		return false
-	}
-
-	pt_load(pt, contents)
-	return true
 }
 
 pt_load :: proc(pt: ^PieceTable, s: string) {
@@ -347,14 +193,4 @@ pt_delete :: proc(pt: ^PieceTable, cursor: int) {
 			pt.entries[i].length = pivot
 		}
 	}
-}
-
-pt_cursor_insert :: proc(pt: ^PieceTable, r: rune) {
-	pt_insert(pt, r, pt.cursor)
-	pt_cursor_move(pt, 1)
-}
-
-pt_cursor_delete :: proc(pt: ^PieceTable) {
-	pt_delete(pt, pt.cursor-1)
-	pt_cursor_move(pt, -1)
 }

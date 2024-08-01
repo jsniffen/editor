@@ -56,20 +56,3 @@ test_pt_delete :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, len(pt.entries), 0)
 }
-
-@(test)
-test_pt_cursor_move :: proc(t: ^testing.T) {
-	pt: PieceTable
-	pt_init(&pt)
-
-	value :: "hello world"
-	pt_load(&pt, value)
-
-	testing.expect_value(t, pt.cursor, 0)
-	pt_cursor_move(&pt, -1)
-	testing.expect_value(t, pt.cursor, 0)
-	pt_cursor_move(&pt, len(value) + 1)
-	testing.expect_value(t, pt.cursor, 0)
-	pt_cursor_move(&pt, len(value))
-	testing.expect_value(t, pt.cursor, len(value))
-}
