@@ -190,3 +190,9 @@ pt_delete :: proc(pt: ^PieceTable, cursor: int) {
 		}
 	}
 }
+
+pt_delete_range :: proc(pt: ^PieceTable, start, end: int) {
+	for i in start..<end {
+		pt_delete(pt, start)
+	}
+}

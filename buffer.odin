@@ -155,13 +155,24 @@ buf_draw :: proc(b: ^Buffer, ed: ^editor, state: frame_state, rec: rl.Rectangle,
 }
 
 buf_insert :: proc(b: ^Buffer, r: rune) {
+	if b.selection.valid {
+		pt_delete_range(&b.pt, b.selection.start, b.selection.end+1)
+		b.cursor = b.selection.start
+		b.selection.valid = false
+	}
 	pt_insert(&b.pt, r, b.cursor)
 	buf_cursor_move(b, 1)
 }
 
 buf_delete :: proc(b: ^Buffer) {
-	pt_delete(&b.pt, b.cursor-1)
-	buf_cursor_move(b, -1)
+	if b.selection.valid {
+		pt_delete_range(&b.pt, b.selection.start, b.selection.end+1)
+		b.cursor = b.selection.start
+		b.selection.valid = false
+	} else {
+		pt_delete(&b.pt, b.cursor-1)
+		buf_cursor_move(b, -1)
+	}
 }
 
 buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
