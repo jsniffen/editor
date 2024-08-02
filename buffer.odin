@@ -83,7 +83,14 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 		}
 
 		info := rl.GetGlyphInfo(ed.font, r)
+
 		glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
+		if glyph_rec.x + glyph_rec.width > rec.x + rec.width {
+			pos.x = rec.x
+			pos.y += LINE_HEIGHT
+			glyph_rec.x = pos.x
+			glyph_rec.y = pos.y
+		}
 
 		if r == '\t' {
 			info = rl.GetGlyphInfo(ed.font, ' ')
