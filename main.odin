@@ -1,6 +1,7 @@
 package main
 
 import rl "vendor:raylib"
+import "core:fmt"
 
 /*
 when ODIN_OS == .Windows {
@@ -44,10 +45,19 @@ Editor :: struct {
 
 FrameState :: struct {
 	mouse_position: rl.Vector2,
+	mouse_delta: rl.Vector2,
+
 	left_mouse_pressed: bool,
+	left_mouse_pressed_pos: rl.Vector2,
+	left_mouse_down: bool,
+	left_mouse_up: bool,
+
 	middle_mouse_pressed: bool,
+
 	right_mouse_pressed: bool,
+
 	mouse_selection: rl.Rectangle,
+	mouse_wheel_move: f32,
 
 	// when there is a mouse selection, this encodes
 	// where the mouse is relative to the selection box.
@@ -75,6 +85,8 @@ main :: proc() {
 
 	mouse_select_start, mouse_select_end: rl.Vector2
 
+	state := FrameState{}
+
 	for !rl.WindowShouldClose() {
 		if ed.focused_buffer != nil {
 			for r := rl.GetCharPressed(); r != 0; r = rl.GetCharPressed() {
@@ -97,12 +109,16 @@ main :: proc() {
 			}
 		}
 
-		state := FrameState{
-			mouse_position = rl.GetMousePosition(),
-			left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT),
-			middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE),
-			right_mouse_pressed = rl.IsMouseButtonPressed(.RIGHT),
-		}
+		state.mouse_position = rl.GetMousePosition()
+
+		state.left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT)
+		state.left_mouse_down = rl.IsMouseButtonDown(.LEFT)
+		state.left_mouse_up = rl.IsMouseButtonUp(.LEFT)
+
+		state.middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE)
+		state.right_mouse_pressed = rl.IsMouseButtonPressed(.RIGHT)
+
+		state.mouse_wheel_move = rl.GetMouseWheelMoveV().y
 
 		if state.left_mouse_pressed {
 			mouse_select_start = state.mouse_position
@@ -114,6 +130,7 @@ main :: proc() {
 			mouse_select_end = state.mouse_position
 		}
 
+		state.mouse_delta = rl.GetMouseDelta()
 		state.mouse_selection.x = min(mouse_select_start.x, mouse_select_end.x)
 		state.mouse_selection.y = min(mouse_select_start.y, mouse_select_end.y)
 		state.mouse_selection.width = abs(mouse_select_start.x - mouse_select_end.x)
