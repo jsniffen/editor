@@ -15,12 +15,14 @@ Buffer :: struct {
 	pt: PieceTable,
 	cursor: int,
 	selection: TextSelection,
-	lines: int,
+	lines: [dynamic]int,
+	dirty: bool,
 }
 
 buf_init :: proc(b: ^Buffer) {
 	pt_init(&b.pt)
-	b.lines = 1
+	b.lines = make([dynamic]int)
+	append(&b.lines, 0)
 }
 
 buf_get_word :: proc(b: ^Buffer, i: int) -> (string, bool) #optional_ok {
@@ -62,25 +64,36 @@ buf_cursor_move :: proc(b: ^Buffer, i: int) {
 	b.cursor += i
 }
 
-buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, fg, bg: rl.Color) {
+buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, fg, bg: rl.Color, lines_to_skip: int = 0) -> int {
 	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
 		ed.focused_buffer = b
 	}
 
-	pos := rl.Vector2{rec.x, rec.y}
+	pos := rl.Vector2{rec.x+MARGIN, rec.y+MARGIN}
 	cursor: rl.Rectangle
 	it := pt_iterator(b.pt)
 	select_start := -1
 	select_end := -1
+	lines_rendered := 1
+	skip_to := b.lines[lines_to_skip]
 
 	for r, i in pt_iterator_next(&it) {
+		if i <= skip_to && skip_to > 0 {
+			continue
+		}
+
+		if pos.y > rec.y + rec.height {
+			break
+		}
+
 		if b.cursor == i {
 			cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
 		}
 
 		if r == '\n' {
-			pos.x = rec.x
+			pos.x = rec.x + MARGIN
 			pos.y += LINE_HEIGHT
+			lines_rendered += 1
 			continue
 		}
 
@@ -88,8 +101,11 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 
 		glyph_rec := rl.Rectangle{pos.x, pos.y, f32(info.advanceX), LINE_HEIGHT}
 		if glyph_rec.x + glyph_rec.width > rec.x + rec.width {
-			pos.x = rec.x
+			// if the right side of the glyph is further right than the right side
+			// of the window, move it to the new line
+			pos.x = rec.x + MARGIN
 			pos.y += LINE_HEIGHT
+			lines_rendered += 1
 			glyph_rec.x = pos.x
 			glyph_rec.y = pos.y
 		}
@@ -201,6 +217,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 		}
 		rl.DrawRectangleRec(cursor, fg)
 	}
+	return lines_rendered
 }
 
 buf_insert :: proc(b: ^Buffer, r: rune) {
@@ -212,6 +229,7 @@ buf_insert :: proc(b: ^Buffer, r: rune) {
 	pt_insert(&b.pt, r, b.cursor)
 	buf_cursor_move(b, 1)
 	buf_set_lines(b)
+	b.dirty = true
 }
 
 buf_delete :: proc(b: ^Buffer) {
@@ -224,6 +242,7 @@ buf_delete :: proc(b: ^Buffer) {
 		buf_cursor_move(b, -1)
 	}
 	buf_set_lines(b)
+	b.dirty = true
 }
 
 buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
@@ -242,16 +261,18 @@ buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
 	pt_load(&b.pt, contents)
 
 	buf_set_lines(b)
+	b.dirty = false
 
 	return true
 }
 
 buf_set_lines :: proc(b: ^Buffer) {
-	b.lines = 1
+	clear(&b.lines)
+	append(&b.lines, 0)
 	it := pt_iterator(b.pt)
-	for r in pt_iterator_next(&it) {
+	for r, i in pt_iterator_next(&it) {
 		if r == '\n' {
-			b.lines += 1
+			append(&b.lines, i)
 		}
 	}
 }
