@@ -78,7 +78,7 @@ main :: proc() {
 
 	ed.font = rl.LoadFontEx(FONT_PATH, FONT_SIZE, nil, 0)
 
-	win: window
+	win: Window
 	win_init(&win)
 
 	ed.load_buffer = &win.body
