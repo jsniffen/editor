@@ -56,3 +56,24 @@ test_pt_delete :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, len(pt.entries), 0)
 }
+
+@(test)
+test_pt_iterator_skip :: proc(t: ^testing.T) {
+	pt: PieceTable
+	pt_init(&pt)
+	pt_load(&pt, "Hello World")
+
+	tests := map[int]string {
+		-1="Hello World",
+		0="Hello World",
+		6="World",
+		10="d",
+		11="",
+	}
+
+	for i, want in tests {
+		it := pt_iterator(pt)
+		pt_iterator_skip(&it, i)
+		testing.expect_value(t, pt_iterator_to_string(&it), want)
+	}
+}

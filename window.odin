@@ -13,6 +13,8 @@ window :: struct {
 
 win_init :: proc(win: ^window) {
 	buf_init(&win.tag)
+	pt_load(&win.tag.pt, "c:/projects/editor/main.odin")
+
 	buf_init(&win.body)
 }
 

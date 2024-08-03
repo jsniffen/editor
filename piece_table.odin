@@ -58,6 +58,26 @@ pt_iterator_len :: proc(it: ^PieceTableIterator) -> int {
 	return count
 }
 
+pt_iterator_to_string :: proc(it: ^PieceTableIterator) -> string {
+	builder: strings.Builder
+	for r in pt_iterator_next(it) {
+		strings.write_rune(&builder, r)
+	}
+	return strings.to_string(builder)
+}
+
+pt_iterator_skip :: proc(it: ^PieceTableIterator, to: int) {
+	if to <= it.index {
+		return
+	}
+
+	for _ in pt_iterator_next(it) {
+		if to <= it.index {
+			return
+		}
+	}
+}
+
 PieceTableEntry :: struct {
 	start: int,
 	length: int,
@@ -83,12 +103,8 @@ pt_reset :: proc(pt: ^PieceTable) {
 }
 
 pt_to_string :: proc(pt: PieceTable) -> string {
-	builder: strings.Builder
 	it := pt_iterator(pt)
-	for r in pt_iterator_next(&it) {
-		strings.write_rune(&builder, r)
-	}
-	return strings.to_string(builder)
+	return pt_iterator_to_string(&it)
 }
 
 pt_load :: proc(pt: ^PieceTable, s: string) {

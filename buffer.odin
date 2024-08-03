@@ -75,13 +75,13 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 	select_start := -1
 	select_end := -1
 	lines_rendered := 1
-	skip_to := b.lines[lines_to_skip]
+
+	if lines_to_skip > 0 {
+		skip_to := b.lines[lines_to_skip]+1
+		pt_iterator_skip(&it, skip_to)
+	}
 
 	for r, i in pt_iterator_next(&it) {
-		if i <= skip_to && skip_to > 0 {
-			continue
-		}
-
 		if pos.y > rec.y + rec.height {
 			break
 		}
