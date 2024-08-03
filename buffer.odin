@@ -15,10 +15,12 @@ Buffer :: struct {
 	pt: PieceTable,
 	cursor: int,
 	selection: TextSelection,
+	lines: int,
 }
 
 buf_init :: proc(b: ^Buffer) {
 	pt_init(&b.pt)
+	b.lines = 1
 }
 
 buf_get_word :: proc(b: ^Buffer, i: int) -> (string, bool) #optional_ok {
@@ -209,6 +211,7 @@ buf_insert :: proc(b: ^Buffer, r: rune) {
 	}
 	pt_insert(&b.pt, r, b.cursor)
 	buf_cursor_move(b, 1)
+	buf_set_lines(b)
 }
 
 buf_delete :: proc(b: ^Buffer) {
@@ -220,6 +223,7 @@ buf_delete :: proc(b: ^Buffer) {
 		pt_delete(&b.pt, b.cursor-1)
 		buf_cursor_move(b, -1)
 	}
+	buf_set_lines(b)
 }
 
 buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
@@ -236,6 +240,18 @@ buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
 	}
 
 	pt_load(&b.pt, contents)
+
+	buf_set_lines(b)
+
 	return true
 }
 
+buf_set_lines :: proc(b: ^Buffer) {
+	b.lines = 1
+	it := pt_iterator(b.pt)
+	for r in pt_iterator_next(&it) {
+		if r == '\n' {
+			b.lines += 1
+		}
+	}
+}
