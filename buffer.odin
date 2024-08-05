@@ -65,16 +65,17 @@ buf_cursor_move :: proc(b: ^Buffer, i: int) {
 }
 
 buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, fg, bg: rl.Color, lines_to_skip: int = 0) -> int {
-	if rl.CheckCollisionPointRec(state.mouse_position, rec) {
-		ed.focused_buffer = b
-	}
-
 	pos := rl.Vector2{rec.x+MARGIN, rec.y+MARGIN}
 	cursor: rl.Rectangle
 	it := pt_iterator(b.pt)
 	select_start := -1
 	select_end := -1
 	lines_rendered := 1
+	mouse_in_buffer := rl.CheckCollisionPointRec(state.mouse_position, rec)
+
+	if mouse_in_buffer {
+		ed.focused_buffer = b
+	}
 
 	if lines_to_skip > 0 {
 		skip_to := b.lines[lines_to_skip]+1
@@ -115,7 +116,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 			glyph_rec = rl.Rectangle{pos.x, pos.y, f32(info.advanceX*4), LINE_HEIGHT}
 		}
 
-		if state.left_mouse_pressed {
+		if mouse_in_buffer && state.left_mouse_pressed {
 			if rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
 				b.cursor = i
 				cursor = {pos.x, pos.y, 2, LINE_HEIGHT}
@@ -123,14 +124,14 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 			}
 		}
 
-		if state.right_mouse_pressed {
+		if mouse_in_buffer && state.right_mouse_pressed {
 			if rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
 				filename := buf_get_word(b, i)
 				buf_load_file(ed.load_buffer, filename)
 			}
 		}
 
-		if state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
+		if mouse_in_buffer && state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
 			// TODO(Julian): 
 			// There is currently a bug where you start a selection over a span of text but end it
 			// on a blank line. We need to handle cases where selection start and end over blank lines.
