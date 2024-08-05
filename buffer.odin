@@ -72,6 +72,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 	select_end := -1
 	lines_rendered := 1
 	mouse_in_buffer := rl.CheckCollisionPointRec(state.mouse_position, rec)
+	left_mouse_is_dragging := state.left_mouse_drag && rl.CheckCollisionPointRec(state.left_mouse_drag_pos, rec)
 
 	if mouse_in_buffer {
 		ed.focused_buffer = b
@@ -131,7 +132,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 			}
 		}
 
-		if mouse_in_buffer && state.mouse_selection.width > 0 && state.mouse_selection.height > 0 {
+		if left_mouse_is_dragging {
 			// TODO(Julian): 
 			// There is currently a bug where you start a selection over a span of text but end it
 			// on a blank line. We need to handle cases where selection start and end over blank lines.

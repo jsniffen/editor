@@ -43,31 +43,6 @@ Editor :: struct {
 	load_buffer: ^Buffer,
 }
 
-FrameState :: struct {
-	mouse_position: rl.Vector2,
-	mouse_delta: rl.Vector2,
-
-	left_mouse_pressed: bool,
-	left_mouse_pressed_pos: rl.Vector2,
-	left_mouse_down: bool,
-	left_mouse_up: bool,
-
-	middle_mouse_pressed: bool,
-
-	right_mouse_pressed: bool,
-
-	mouse_selection: rl.Rectangle,
-	mouse_wheel_move: f32,
-
-	// when there is a mouse selection, this encodes
-	// where the mouse is relative to the selection box.
-	// [ 1,  1]: top right
-	// [ 1, -1]: bottom right
-	// [-1, -1]: bottom left
-	// [-1,  1]: top left
-	mouse_selection_pos: rl.Vector2,
-}
-
 main :: proc() {
 	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "test")
 
@@ -85,7 +60,7 @@ main :: proc() {
 
 	mouse_select_start, mouse_select_end: rl.Vector2
 
-	state := FrameState{}
+	frame_state := FrameState{}
 
 	for !rl.WindowShouldClose() {
 		if ed.focused_buffer != nil {
@@ -109,35 +84,7 @@ main :: proc() {
 			}
 		}
 
-		state.mouse_position = rl.GetMousePosition()
-
-		state.left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT)
-		state.left_mouse_down = rl.IsMouseButtonDown(.LEFT)
-		state.left_mouse_up = rl.IsMouseButtonUp(.LEFT)
-
-		state.middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE)
-		state.right_mouse_pressed = rl.IsMouseButtonPressed(.RIGHT)
-
-		state.mouse_wheel_move = rl.GetMouseWheelMoveV().y
-
-		if state.left_mouse_pressed {
-			mouse_select_start = state.mouse_position
-			mouse_select_end = mouse_select_start
-		} else if rl.IsMouseButtonDown(.LEFT) || rl.IsMouseButtonReleased(.LEFT) {
-			mouse_select_end = state.mouse_position
-		} else {
-			mouse_select_start = state.mouse_position
-			mouse_select_end = state.mouse_position
-		}
-
-		state.mouse_delta = rl.GetMouseDelta()
-		state.mouse_selection.x = min(mouse_select_start.x, mouse_select_end.x)
-		state.mouse_selection.y = min(mouse_select_start.y, mouse_select_end.y)
-		state.mouse_selection.width = abs(mouse_select_start.x - mouse_select_end.x)
-		state.mouse_selection.height = abs(mouse_select_start.y - mouse_select_end.y)
-
-		state.mouse_selection_pos.x = 1 if mouse_select_end.x > mouse_select_start.x else -1
-		state.mouse_selection_pos.y = 1 if mouse_select_end.y > mouse_select_start.y else -1 
+		fs_update(&frame_state)
 
 		rl.BeginDrawing()
 
@@ -145,7 +92,7 @@ main :: proc() {
 
 		w, h: = f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 
-		win_draw(&win, &ed, state, {0, 0, w, h})
+		win_draw(&win, &ed, frame_state, {0, 0, w, h})
 
 		rl.EndDrawing()
 	}
