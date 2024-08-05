@@ -7,10 +7,9 @@ FrameState :: struct {
 	mouse_delta: rl.Vector2,
 
 	left_mouse_pressed: bool,
+	left_mouse_pressed_pos: rl.Vector2,
 	left_mouse_down: bool,
 	left_mouse_up: bool,
-	left_mouse_drag: bool,
-	left_mouse_drag_pos: rl.Vector2,
 
 	middle_mouse_pressed: bool,
 
@@ -36,13 +35,8 @@ fs_update :: proc(state: ^FrameState) {
 	state.left_mouse_pressed = rl.IsMouseButtonPressed(.LEFT)
 	state.left_mouse_down = rl.IsMouseButtonDown(.LEFT)
 	state.left_mouse_up = rl.IsMouseButtonUp(.LEFT)
-
 	if state.left_mouse_pressed {
-		state.left_mouse_drag = true
-		state.left_mouse_drag_pos = state.mouse_position
-	} else if state.left_mouse_up {
-		state.left_mouse_drag = false
-		state.left_mouse_drag_pos = state.mouse_position
+		state.left_mouse_pressed_pos = state.mouse_position
 	}
 
 	state.middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE)

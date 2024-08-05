@@ -81,7 +81,11 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 
 	if state.mouse_wheel_move != 0 {
 		w.skip_body_lines = max(0, min(w.skip_body_lines - int(state.mouse_wheel_move), len(w.body.lines)-1))
-	} else if !w.drag_scrolling && (state.left_mouse_pressed || state.right_mouse_pressed) {
+	} else if w.drag_scrolling {
+		scrollbar_rec.y = max(scrollbar_ymin, min(scrollbar_ymax, state.mouse_position.y - w.drag_scroll_diff))
+		percent_scroll := (scrollbar_rec.y - scrollbar_ymin)/(scrollbar_ymax - scrollbar_ymin)
+		w.skip_body_lines = int(percent_scroll*f32(len(w.body.lines)-1))
+	} else if state.left_mouse_pressed || state.right_mouse_pressed {
 		if rl.CheckCollisionPointRec(state.mouse_position, scrollzone_rec) {
 			diff := int((state.mouse_position.y - scrollzone_rec.y)/LINE_HEIGHT)+1
 			if state.left_mouse_pressed {
@@ -92,13 +96,6 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 		}
 	}
 
-	if w.drag_scrolling {
-		scrollbar_rec.y = max(scrollbar_ymin, min(scrollbar_ymax, state.mouse_position.y - w.drag_scroll_diff))
-		percent_scroll := (scrollbar_rec.y - scrollbar_ymin)/(scrollbar_ymax - scrollbar_ymin)
-		w.skip_body_lines = int(percent_scroll*f32(len(w.body.lines)-1))
-	}
-
 	rl.DrawRectangleRec(scrollbar_rec, COLOR_SCROLLBAR_FG)
-
 }
 

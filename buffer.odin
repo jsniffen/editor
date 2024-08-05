@@ -72,7 +72,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 	select_end := -1
 	lines_rendered := 1
 	mouse_in_buffer := rl.CheckCollisionPointRec(state.mouse_position, rec)
-	left_mouse_is_dragging := state.left_mouse_drag && rl.CheckCollisionPointRec(state.left_mouse_drag_pos, rec)
+	left_mouse_is_dragging := state.left_mouse_down && rl.CheckCollisionPointRec(state.left_mouse_pressed_pos, rec) && state.left_mouse_pressed_pos != state.mouse_position
 
 	if mouse_in_buffer {
 		ed.focused_buffer = b
