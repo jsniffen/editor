@@ -1,6 +1,7 @@
 package main
 
 import rl "vendor:raylib"
+import "core:fmt"
 
 FrameState :: struct {
 	mouse_position: rl.Vector2,
@@ -41,6 +42,9 @@ fs_update :: proc(state: ^FrameState) {
 
 	state.middle_mouse_pressed = rl.IsMouseButtonPressed(.MIDDLE)
 	state.right_mouse_pressed = rl.IsMouseButtonPressed(.RIGHT)
+	if state.right_mouse_pressed {
+		fmt.println(state.right_mouse_pressed)
+	}
 
 	state.mouse_wheel_move = rl.GetMouseWheelMoveV().y
 

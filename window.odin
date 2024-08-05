@@ -17,12 +17,10 @@ Window :: struct {
 
 win_init :: proc(w: ^Window) {
 	buf_init(&w.tag)
-	pt_load(&w.tag.pt, "c:/projects/editor/main.odin")
-
 	buf_init(&w.body)
 }
 
-win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) {
+win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) -> int {
 	tag_rec := rec
 	rl.DrawRectangleRec(tag_rec, COLOR_TAG_BG)
 
@@ -46,16 +44,16 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 
 	tag_rec.x += button_rec.width
 	tag_rec.width -= button_rec.width
-	lines_rendered := buf_draw(&w.tag, ed, state, tag_rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
+	tag_lines_rendered := buf_draw(&w.tag, ed, state, tag_rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
 
 	body_rec := rec
-	body_rec.y += f32(LINE_HEIGHT*lines_rendered) + 2*MARGIN
+	body_rec.y += f32(LINE_HEIGHT*tag_lines_rendered) + 2*MARGIN
 	body_rec.height -= body_rec.y
 	body_rec.x += SCROLLBAR_WIDTH
 	body_rec.width -= SCROLLBAR_WIDTH
 
 	rl.DrawRectangleRec(body_rec, COLOR_BODY_BG)
-	lines_rendered = buf_draw(&w.body, ed, state, body_rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT, lines_to_skip=w.skip_body_lines)
+	body_lines_rendered := buf_draw(&w.body, ed, state, body_rec, COLOR_BODY_TEXT, COLOR_BODY_TEXT_SELECT, lines_to_skip=w.skip_body_lines)
 
 	scrollzone_rec := rec
 	scrollzone_rec.y = body_rec.y
@@ -68,7 +66,7 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 	scrollbar_ymax := scrollbar_ymin + scrollzone_rec.height
 
 	scrollbar_rec := rec
-	scrollbar_rec.height *= f32(lines_rendered)/f32(len(w.body.lines))
+	scrollbar_rec.height *= f32(body_lines_rendered)/f32(len(w.body.lines))
 	scrollbar_rec.y = scrollbar_ymin + f32(w.skip_body_lines)/f32(len(w.body.lines))*f32(scrollbar_ymax - scrollbar_ymin)
 	scrollbar_rec.width = SCROLLBAR_WIDTH - 1
 
@@ -97,5 +95,11 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 	}
 
 	rl.DrawRectangleRec(scrollbar_rec, COLOR_SCROLLBAR_FG)
+
+	return tag_lines_rendered + body_lines_rendered
 }
 
+win_load_file :: proc(w: ^Window, filename: string) {
+	buf_load(&w.tag, filename)
+	buf_load_file(&w.body, filename)
+}

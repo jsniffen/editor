@@ -73,6 +73,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 	lines_rendered := 1
 	mouse_in_buffer := rl.CheckCollisionPointRec(state.mouse_position, rec)
 	left_mouse_is_dragging := state.left_mouse_down && rl.CheckCollisionPointRec(state.left_mouse_pressed_pos, rec) && state.left_mouse_pressed_pos != state.mouse_position
+	search_word: string
 
 	if mouse_in_buffer {
 		ed.focused_buffer = b
@@ -127,8 +128,7 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 
 		if mouse_in_buffer && state.right_mouse_pressed {
 			if rl.CheckCollisionPointRec(state.mouse_position, glyph_rec) {
-				filename := buf_get_word(b, i)
-				buf_load_file(ed.load_buffer, filename)
+				search_word = buf_get_word(b, i)
 			}
 		}
 
@@ -219,6 +219,11 @@ buf_draw :: proc(b: ^Buffer, ed: ^Editor, state: FrameState, rec: rl.Rectangle, 
 		}
 		rl.DrawRectangleRec(cursor, fg)
 	}
+
+	if search_word != "" {
+		ed_load_file(ed, search_word)
+	}
+
 	return lines_rendered
 }
 
@@ -247,24 +252,25 @@ buf_delete :: proc(b: ^Buffer) {
 	b.dirty = true
 }
 
-buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
+buf_load :: proc(b: ^Buffer, content: string) {
 	pt_reset(&b.pt)
+	pt_load(&b.pt, content)
+	buf_set_lines(b)
+	b.dirty = false
+}
 
+buf_load_file :: proc(b: ^Buffer, filename: string) -> bool {
 	bytes, ok := os.read_entire_file(filename)
 	if !ok {
 		return false
 	}
 
-	contents, err := strings.clone_from_bytes(bytes)
+	content, err := strings.clone_from_bytes(bytes)
 	if err != nil {
 		return false
 	}
 
-	pt_load(&b.pt, contents)
-
-	buf_set_lines(b)
-	b.dirty = false
-
+	buf_load(b, content)
 	return true
 }
 

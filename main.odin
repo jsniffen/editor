@@ -34,14 +34,11 @@ COLOR_BUTTON_FG := rl.GetColor(0x000099FF)
 BUTTON_WIDTH :: SCROLLBAR_WIDTH
 BUTTON_MARGIN :: BUTTON_WIDTH/8
 
+LINE_THICKNESS :: 2
+LINE_COLOR := rl.GetColor(0x000000FF)
+
 SCREEN_WIDTH :: 1280
 SCREEN_HEIGHT :: 720
-
-Editor :: struct {
-	focused_buffer: ^Buffer,
-	font: rl.Font,
-	load_buffer: ^Buffer,
-}
 
 main :: proc() {
 	rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "test")
@@ -50,17 +47,9 @@ main :: proc() {
 	rl.SetTargetFPS(60)
 
 	ed: Editor
+	ed_init(&ed)
 
-	ed.font = rl.LoadFontEx(FONT_PATH, FONT_SIZE, nil, 0)
-
-	win: Window
-	win_init(&win)
-
-	ed.load_buffer = &win.body
-
-	mouse_select_start, mouse_select_end: rl.Vector2
-
-	frame_state := FrameState{}
+	frame_state: FrameState
 
 	for !rl.WindowShouldClose() {
 		if ed.focused_buffer != nil {
@@ -92,7 +81,7 @@ main :: proc() {
 
 		w, h: = f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 
-		win_draw(&win, &ed, frame_state, {0, 0, w, h})
+		ed_draw(&ed, frame_state, {0, 0, w, h})
 
 		rl.EndDrawing()
 	}
