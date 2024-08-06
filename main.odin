@@ -12,7 +12,7 @@ when ODIN_OS == .Windows {
 */
 FONT_PATH :: "Go-Regular.ttf"
 
-FONT_SIZE :: 20
+FONT_SIZE :: 24
 LINE_HEIGHT :: FONT_SIZE
 MARGIN :: 5
 
