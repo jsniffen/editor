@@ -284,3 +284,7 @@ buf_set_lines :: proc(b: ^Buffer) {
 		}
 	}
 }
+
+buf_is_empty :: proc(b: ^Buffer) -> bool {
+	return pt_to_string(b.pt) == ""
+}

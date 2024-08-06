@@ -13,11 +13,14 @@ Window :: struct {
 	// we are currently drag scrolling
 	drag_scrolling: bool,
 	drag_scroll_diff: f32,
+
+	height: f32,
 }
 
 win_init :: proc(w: ^Window) {
 	buf_init(&w.tag)
 	buf_init(&w.body)
+	w.height = 1.0
 }
 
 win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) -> int {
@@ -46,9 +49,17 @@ win_draw :: proc(w: ^Window, ed: ^Editor, state: FrameState, rec: rl.Rectangle) 
 	tag_rec.width -= button_rec.width
 	tag_lines_rendered := buf_draw(&w.tag, ed, state, tag_rec, COLOR_TAG_TEXT, COLOR_TAG_TEXT_SELECT)
 
+	start, end: rl.Vector2
+	start.x = rec.x
+	end.x = rec.x + rec.width
+	start.y = tag_rec.y + f32(2*MARGIN) + f32(tag_lines_rendered*LINE_HEIGHT)
+	end.y = start.y
+
+	rl.DrawLineEx(start, end, WINDOW_DIVIDER_THICKNESS, COLOR_BUTTON_BG)
+
 	body_rec := rec
-	body_rec.y += f32(LINE_HEIGHT*tag_lines_rendered) + 2*MARGIN
-	body_rec.height -= body_rec.y
+	body_rec.y += f32(LINE_HEIGHT*tag_lines_rendered) + 2*MARGIN + WINDOW_DIVIDER_THICKNESS
+	body_rec.height -= f32(LINE_HEIGHT*tag_lines_rendered) + 2*MARGIN + WINDOW_DIVIDER_THICKNESS
 	body_rec.x += SCROLLBAR_WIDTH
 	body_rec.width -= SCROLLBAR_WIDTH
 
